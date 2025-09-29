@@ -444,7 +444,8 @@
       list.forEach(t=>{
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-50';
-        const overdue = t.due && daysDiffFromToday(t.due) < 0 && t.status !== 'Concluído';
+  const prazo = t.due_date || t.due;
+  const overdue = prazo && daysDiffFromToday(prazo) < 0 && t.status !== 'Concluído';
         const thumbCount = (t.attachments||[]).length;
         tr.innerHTML = `
           <td class="px-4 py-3">
@@ -452,7 +453,7 @@
             <div class="text-xs text-slate-500">${t.description? t.description.slice(0,80)+(t.description.length>80?'…':''):'-'}</div>
           </td>
           <td class="px-4 py-3">${t.assignee||'-'}</td>
-          <td class="px-4 py-3 ${overdue?'text-rose-600 font-semibold':''}">${formatDate(t.due)}</td>
+          <td class="px-4 py-3 ${overdue?'text-rose-600 font-semibold':''}">${formatDate(prazo)}</td>
           <td class="px-4 py-3">${badgePriority(t.priority)}</td>
           <td class="px-4 py-3">${badgeStatus(t.status)}</td>
           <td class="px-4 py-3">${(t.tags||[]).map(x=>`<span class='text-xs bg-slate-100 rounded px-2 py-0.5 mr-1'>${x}</span>`).join('')}</td>
@@ -577,14 +578,22 @@
       const tags = (data.tags||'').split(',').map(x=>x.trim()).filter(Boolean);
       if (editingId) {
           const idx = tasks.findIndex(t=>t.id===editingId);
-          const editTask = { ...tasks[idx], ...data, tags, attachments: [...anexosTemp] };
+          let editTask = { ...tasks[idx], ...data, tags, attachments: [...anexosTemp] };
+          // Corrige nome do campo de data para Supabase
+          if (editTask.due) {
+            editTask.due_date = editTask.due;
+            delete editTask.due;
+          }
+          // Remove anexos antigos do Supabase antes de salvar novos
+          await supabaseClient.from('task_attachments').delete().eq('task_id', editTask.id);
           await supabaseInsertTask(editTask);
         } else {
           const nova = { id: uuidv4(), title: data.title, assignee: data.assignee||'', due: data.due||'', priority: data.priority||'Média', status: data.status||'Backlog', description: data.description||'', tags, attachments: [...anexosTemp], createdAt: new Date().toISOString() };
           await supabaseInsertTask(nova);
         }
-        modal.close();
-        await refreshAll();
+  modal.close();
+  await loadTasksFromSupabase();
+  await refreshAll();
     });
 
     // ====== Ações da Lista/Kanban ======
@@ -609,7 +618,8 @@
               await refreshAll();
             }
         }
-      if (act==='view') { openDetail(t); }
+  if (act==='edit') { openEdit(t); }
+  if (act==='view') { openDetail(t); }
     }
 
     function openEdit(t) {
@@ -618,7 +628,7 @@
       renderThumbs();
       form.title.value = t.title || '';
       form.assignee.value = t.assignee || '';
-      form.due.value = t.due || '';
+  form.due.value = t.due_date || t.due || '';
       form.priority.value = t.priority || 'Média';
       form.status.value = t.status || 'Backlog';
       form.description.value = t.description || '';
