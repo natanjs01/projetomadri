@@ -721,8 +721,20 @@
         const senha = prompt('Digite a senha para confirmar o reset:');
         if (senha === '0000') {
           // Deleta todas as tarefas e anexos do Supabase
-          const { error: errTasks } = await supabaseClient.from('tasks').delete().neq('id', '');
-          const { error: errAttach } = await supabaseClient.from('task_attachments').delete().neq('id', '');
+          // Buscar todos os ids das tarefas
+          const { data: tasksData, error: errGetTasks } = await supabaseClient.from('tasks').select('id');
+          const { data: attachData, error: errGetAttach } = await supabaseClient.from('task_attachments').select('id');
+          let errTasks = null, errAttach = null;
+          if (tasksData && tasksData.length > 0) {
+            const ids = tasksData.map(t => t.id);
+            const res = await supabaseClient.from('tasks').delete().in('id', ids);
+            errTasks = res.error;
+          }
+          if (attachData && attachData.length > 0) {
+            const ids = attachData.map(a => a.id);
+            const res = await supabaseClient.from('task_attachments').delete().in('id', ids);
+            errAttach = res.error;
+          }
           if (errTasks || errAttach) {
             alert('Erro ao deletar dados do Supabase!');
             console.error('Erro ao deletar tasks:', errTasks);
