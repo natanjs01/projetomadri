@@ -1,3 +1,4 @@
+<!-- O código JavaScript deve estar apenas dentro das tags <script> no final do arquivo. Nenhuma função deve aparecer fora do <script>. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -8,6 +9,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     /* Scrollbar mais suave para listas de anexos e quadros */
     * { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
@@ -213,6 +216,74 @@
   </dialog>
 
   <script>
+  // ====== Supabase integração ======
+      const supabaseUrl = "https://iynsvuugjjbvjacrjmig.supabase.co";
+      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5bnN2dXVnampidmphY3JqbWlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODUwODksImV4cCI6MjA3NDQ2MTA4OX0.b-8p05tTG4iLbITGVdY1Da3TQbbupaYIZLfT-aMhPbk";
+  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+      // Buscar tasks do Supabase e exibir no console
+      async function fetchTasksSupabase() {
+        const { data, error } = await supabaseClient.from('tasks').select('*');
+        if (error) {
+          console.error('Erro ao buscar tasks do Supabase:', error);
+        } else {
+          console.log('Tasks do Supabase:', data);
+        }
+      }
+      fetchTasksSupabase();
+
+      // Funções Supabase para CRUD
+      async function supabaseInsertTask(task) {
+        // Monta payload para tasks, removendo attachments
+        const { attachments, ...payload } = task;
+        // Corrige nome do campo de data
+        if (payload.due) {
+          payload.due_date = payload.due;
+          delete payload.due;
+        }
+        // tags precisa ser array de string
+        if (typeof payload.tags === 'string') {
+          payload.tags = payload.tags.split(',').map(x=>x.trim()).filter(Boolean);
+        }
+        const { data, error } = await supabaseClient.from('tasks').upsert([payload], { onConflict: ['id'] });
+        if (error) {
+          console.error('Erro ao salvar no Supabase:', error, payload);
+        } else {
+          console.log('Tarefa salva no Supabase:', data, payload);
+        }
+        // Salva anexos na tabela task_attachments
+        if (Array.isArray(attachments) && attachments.length > 0) {
+          for (const a of attachments) {
+            const { data: attachData, error: attachError } = await supabaseClient.from('task_attachments').upsert([
+              {
+                id: a.id || (window.crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)),
+                task_id: payload.id,
+                file_name: a.name,
+                file_url: a.dataURL,
+                created_at: new Date().toISOString()
+              }
+            ]);
+            if (attachError) {
+              console.error('Erro ao salvar anexo no Supabase:', attachError, a);
+            } else {
+              console.log('Anexo salvo no Supabase:', attachData, a);
+            }
+          }
+        }
+      }
+
+      async function supabaseDeleteTask(id) {
+        const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
+        if (error) console.error('Erro ao excluir no Supabase:', error);
+        // Excluir anexos relacionados
+        await supabaseClient.from('task_attachments').delete().eq('task_id', id);
+      }
+
+      async function supabaseBulkInsertTasks(taskList) {
+        for (const t of taskList) {
+          await supabaseInsertTask(t);
+        }
+      }
     // ====== State & Persistência ======
     const STORAGE_KEY = 'taskBoard_v1';
   let tasks = load();
@@ -220,7 +291,14 @@
     let editingId = null;
     let anexosTemp = []; // {name, dataURL}
 
-    function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+    function uuidv4() {
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+      // Fallback para navegadores antigos
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
     function load() {
       try {
         const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -489,7 +567,7 @@
     document.getElementById('btnClearAnexos').addEventListener('click', ()=>{ anexosTemp = []; renderThumbs(); });
 
     // ====== Salvar / Editar ======
-    form.addEventListener('submit', (e)=>{
+    form.addEventListener('submit', async (e)=>{
       e.preventDefault();
       const fd = new FormData(form);
       const data = Object.fromEntries(fd.entries());
@@ -498,10 +576,12 @@
         const idx = tasks.findIndex(t=>t.id===editingId);
         tasks[idx] = { ...tasks[idx], ...data, tags, attachments: [...anexosTemp] };
         console.log('Editando atividade:', tasks[idx]);
+    await supabaseInsertTask(tasks[idx]);
       } else {
         const nova = { id: uid(), title: data.title, assignee: data.assignee||'', due: data.due||'', priority: data.priority||'Média', status: data.status||'Backlog', description: data.description||'', tags, attachments: [...anexosTemp], createdAt: new Date().toISOString() };
         tasks.push(nova);
         console.log('Nova atividade adicionada:', nova);
+    await supabaseInsertTask(nova);
       }
       save();
       console.log('Tarefas após cadastro:', tasks);
@@ -516,15 +596,16 @@
     document.getElementById('taskTable').addEventListener('click', onActionClick);
     document.getElementById('viewKanban').addEventListener('click', onActionClick);
 
-    function onActionClick(e) {
+    async function onActionClick(e) {
       const btn = e.target.closest('button');
       if (!btn) return;
       const act = btn.getAttribute('data-act');
       const id = btn.getAttribute('data-id');
       const t = tasks.find(x=>x.id===id);
       if (!t) return;
-      if (act==='del') { if (confirm('Excluir esta atividade?')) { tasks = tasks.filter(x=>x.id!==id); save(); refreshAll(); } }
-      if (act==='edit') { openEdit(t); }
+      if (act==='del') { if (confirm('Excluir esta atividade?')) { tasks = tasks.filter(x=>x.id!==id); save(); refreshAll(); 
+        await supabaseDeleteTask(id); 
+      } }
       if (act==='view') { openDetail(t); }
     }
 
@@ -594,19 +675,26 @@
       try {
         const data = JSON.parse(text);
         if (Array.isArray(data)) {
-          // Garante que cada atividade tenha um id único e tags/attachments como array
-          tasks = data.map((t) => ({
-            ...t,
-            id: t.id || uid(),
-            tags: Array.isArray(t.tags) ? t.tags : (typeof t.tags === 'string' ? t.tags.split(',').map(x=>x.trim()).filter(Boolean) : []),
-            attachments: Array.isArray(t.attachments) ? t.attachments : []
-          }));
+          // Garante que cada atividade tenha um id UUID válido e tags/attachments como array
+          tasks = data.map((t) => {
+            let validId = t.id;
+            // Regex simples para validar UUID v4
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (!validId || !uuidRegex.test(validId)) validId = uuidv4();
+            return {
+              ...t,
+              id: validId,
+              tags: Array.isArray(t.tags) ? t.tags : (typeof t.tags === 'string' ? t.tags.split(',').map(x=>x.trim()).filter(Boolean) : []),
+              attachments: Array.isArray(t.attachments) ? t.attachments : []
+            };
+          });
           save();
           console.log('Tarefas após importação:', tasks);
           renderList();
           renderKanban();
           kpi.render();
           refreshCharts();
+            await supabaseBulkInsertTasks(tasks);
           alert('Importado com sucesso!');
           importOk = true;
         } else {
