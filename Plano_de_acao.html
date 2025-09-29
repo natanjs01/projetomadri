@@ -286,7 +286,7 @@
       }
     // ====== State & Persistência ======
     const STORAGE_KEY = 'taskBoard_v1';
-  let tasks = load();
+  let tasks = [];
   console.log('Tarefas carregadas ao iniciar:', tasks);
     let editingId = null;
     let anexosTemp = []; // {name, dataURL}
@@ -299,12 +299,15 @@
         return v.toString(16);
       });
     }
-    function load() {
-      try {
-        const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        if (Array.isArray(data)) return data;
-        return [];
-      } catch { return []; }
+    // Carregar tarefas do Supabase ao iniciar
+    async function loadTasksFromSupabase() {
+      const { data, error } = await supabaseClient.from('tasks').select('*');
+      if (error) {
+        console.error('Erro ao carregar tarefas do Supabase:', error);
+        tasks = [];
+      } else {
+        tasks = data || [];
+      }
     }
     function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
   console.log('Tarefas salvas:', tasks);
@@ -573,23 +576,15 @@
       const data = Object.fromEntries(fd.entries());
       const tags = (data.tags||'').split(',').map(x=>x.trim()).filter(Boolean);
       if (editingId) {
-        const idx = tasks.findIndex(t=>t.id===editingId);
-        tasks[idx] = { ...tasks[idx], ...data, tags, attachments: [...anexosTemp] };
-        console.log('Editando atividade:', tasks[idx]);
-    await supabaseInsertTask(tasks[idx]);
-      } else {
-        const nova = { id: uid(), title: data.title, assignee: data.assignee||'', due: data.due||'', priority: data.priority||'Média', status: data.status||'Backlog', description: data.description||'', tags, attachments: [...anexosTemp], createdAt: new Date().toISOString() };
-        tasks.push(nova);
-        console.log('Nova atividade adicionada:', nova);
-    await supabaseInsertTask(nova);
-      }
-      save();
-      console.log('Tarefas após cadastro:', tasks);
-      modal.close();
-      renderList();
-      renderKanban();
-      kpi.render();
-      refreshCharts();
+          const idx = tasks.findIndex(t=>t.id===editingId);
+          const editTask = { ...tasks[idx], ...data, tags, attachments: [...anexosTemp] };
+          await supabaseInsertTask(editTask);
+        } else {
+          const nova = { id: uuidv4(), title: data.title, assignee: data.assignee||'', due: data.due||'', priority: data.priority||'Média', status: data.status||'Backlog', description: data.description||'', tags, attachments: [...anexosTemp], createdAt: new Date().toISOString() };
+          await supabaseInsertTask(nova);
+        }
+        modal.close();
+        await refreshAll();
     });
 
     // ====== Ações da Lista/Kanban ======
@@ -604,17 +599,15 @@
       const t = tasks.find(x=>x.id===id);
       if (!t) return;
         if (act==='del') {
-          if (confirm('Excluir esta atividade?')) {
-            const { error } = await supabaseDeleteTask(id);
-            if (error) {
-              alert('Erro ao excluir no Supabase!');
-              console.error('Erro ao excluir no Supabase:', error);
-              return;
+            if (confirm('Excluir esta atividade?')) {
+              const { error } = await supabaseDeleteTask(id);
+              if (error) {
+                alert('Erro ao excluir no Supabase!');
+                console.error('Erro ao excluir no Supabase:', error);
+                return;
+              }
+              await refreshAll();
             }
-            tasks = tasks.filter(x=>x.id!==id);
-            save();
-            refreshAll();
-          }
         }
       if (act==='view') { openDetail(t); }
     }
@@ -686,9 +679,8 @@
         const data = JSON.parse(text);
         if (Array.isArray(data)) {
           // Garante que cada atividade tenha um id UUID válido e tags/attachments como array
-          tasks = data.map((t) => {
+          const importTasks = data.map((t) => {
             let validId = t.id;
-            // Regex simples para validar UUID v4
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
             if (!validId || !uuidRegex.test(validId)) validId = uuidv4();
             return {
@@ -698,15 +690,10 @@
               attachments: Array.isArray(t.attachments) ? t.attachments : []
             };
           });
-          save();
-          console.log('Tarefas após importação:', tasks);
-          renderList();
-          renderKanban();
-          kpi.render();
-          refreshCharts();
-            await supabaseBulkInsertTasks(tasks);
+          await supabaseBulkInsertTasks(importTasks);
           alert('Importado com sucesso!');
           importOk = true;
+          await refreshAll();
         } else {
           alert('Arquivo inválido.');
         }
@@ -764,7 +751,12 @@
     }
 
     // Inicializar
-    refreshAll();
+    // Inicializar
+    async function startApp() {
+      await loadTasksFromSupabase();
+      await refreshAll();
+    }
+    startApp();
   </script>
 </body>
 </html>
