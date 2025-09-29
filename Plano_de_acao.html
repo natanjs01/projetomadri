@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Controle de Atividades — Dashboard & Anexos</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Scrollbar mais suave para listas de anexos e quadros */
+    * { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+    ::-webkit-scrollbar { height: 8px; width: 8px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .dropzone {
+      border: 2px dashed #94a3b8; border-radius: 1rem; transition: all .15s ease;
+    }
+    .dropzone.dragover { border-color: #0ea5e9; background: #f0f9ff; }
+    /* Fixar altura dos gráficos para evitar expansão infinita */
+    #statusChart, #priorityChart {
+      height: 280px !important;
+      max-height: 280px;
+      min-height: 140px;
+      width: 100% !important;
+      max-width: 100%;
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="max-w-7xl mx-auto p-4 md:p-6">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold">Controle de Atividades</h1>
+        <p class="text-slate-600">Crie tarefas, anexe imagens, visualize em dashboard, lista ou Kanban. Dados salvos no seu navegador (localStorage).</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnNew" class="px-4 py-2 rounded-2xl bg-sky-600 text-white hover:bg-sky-700">+ Nova Atividade</button>
+        <button id="btnExport" class="px-4 py-2 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700">Exportar</button>
+        <label class="px-4 py-2 rounded-2xl bg-amber-600 text-white hover:bg-amber-700 cursor-pointer">
+          Importar <input type="file" id="inputImport" accept="application/json" class="hidden" />
+        </label>
+        <button id="btnReset" class="px-4 py-2 rounded-2xl bg-rose-600 text-white hover:bg-rose-700" title="Apagar todas as atividades">Reset</button>
+      </div>
+    </header>
+
+    <!-- KPIs -->
+    <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6" id="kpiCards">
+      <!-- Cards gerados via JS -->
+    </section>
+
+    <!-- Charts -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      <div class="bg-white rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-2">Status das Atividades</h2>
+        <canvas id="statusChart" height="140"></canvas>
+      </div>
+      <div class="bg-white rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-2">Prioridade</h2>
+        <canvas id="priorityChart" height="140"></canvas>
+      </div>
+    </section>
+
+    <!-- Filtros / Abas -->
+    <section class="bg-white rounded-2xl shadow p-4 mb-4">
+      <div class="flex flex-col md:flex-row md:items-end gap-3">
+        <div class="flex-1">
+          <label class="block text-sm font-medium mb-1" for="search">Busca</label>
+            <div class="flex gap-2 items-center">
+              <input id="search" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Título, responsável, tags..." />
+              <label class="flex gap-1 items-center text-xs text-slate-600"><input type="checkbox" id="searchTagsOnly" /> Buscar apenas por tags</label>
+            </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="filterStatus">Status</label>
+          <select id="filterStatus" class="rounded-xl border border-slate-300 px-3 py-2">
+            <option value="">Todos</option>
+            <option>Backlog</option>
+            <option>Em andamento</option>
+            <option>Bloqueado</option>
+            <option>Concluído</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="filterPriority">Prioridade</label>
+          <select id="filterPriority" class="rounded-xl border border-slate-300 px-3 py-2">
+            <option value="">Todas</option>
+            <option>Baixa</option>
+            <option>Média</option>
+            <option>Alta</option>
+            <option>Crítica</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="filterAssignee">Responsável</label>
+          <input id="filterAssignee" class="rounded-xl border border-slate-300 px-3 py-2" placeholder="Ex.: Ana" />
+        </div>
+        <div class="flex gap-2">
+          <button id="tabList" class="px-4 py-2 rounded-2xl bg-slate-200 hover:bg-slate-300">Lista</button>
+          <button id="tabKanban" class="px-4 py-2 rounded-2xl bg-slate-200 hover:bg-slate-300">Kanban</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Conteúdo: Lista -->
+    <section id="viewList" class="bg-white rounded-2xl shadow overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr>
+            <th class="text-left px-4 py-3">Título</th>
+            <th class="text-left px-4 py-3">Responsável</th>
+            <th class="text-left px-4 py-3">Prazo</th>
+            <th class="text-left px-4 py-3">Prioridade</th>
+            <th class="text-left px-4 py-3">Status</th>
+            <th class="text-left px-4 py-3">Tags</th>
+            <th class="text-left px-4 py-3">Anexos</th>
+            <th class="px-4 py-3">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="taskTable" class="divide-y"></tbody>
+      </table>
+      <div id="emptyList" class="hidden p-6 text-center text-slate-500">Nenhuma atividade encontrada…</div>
+    </section>
+
+    <!-- Conteúdo: Kanban -->
+    <section id="viewKanban" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Colunas geradas via JS -->
+    </section>
+  </div>
+
+  <!-- Modal: Nova/Editar Atividade -->
+  <dialog id="taskModal" class="rounded-2xl w-11/12 max-w-3xl p-0 shadow-2xl">
+    <form id="taskForm" class="bg-white rounded-2xl">
+      <div class="flex justify-between items-center px-5 py-4 border-b">
+        <h3 id="modalTitle" class="text-lg font-semibold">Nova Atividade</h3>
+        <button type="button" id="btnCloseModal" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
+      </div>
+      <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-1">Título *</label>
+          <input required name="title" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Ex.: Publicar especificação do módulo fiscal" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Responsável</label>
+          <input name="assignee" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Ex.: Natanael" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Prazo</label>
+          <input type="date" name="due" class="w-full rounded-xl border border-slate-300 px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Prioridade</label>
+          <select name="priority" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+            <option>Baixa</option>
+            <option>Média</option>
+            <option selected>Alta</option>
+            <option>Crítica</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Status</label>
+          <select name="status" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+            <option>Backlog</option>
+            <option selected>Em andamento</option>
+            <option>Bloqueado</option>
+            <option>Concluído</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-1">Descrição</label>
+          <textarea name="description" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Contexto, escopo, critérios de aceite…"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Tags (separe por vírgula)</label>
+          <input name="tags" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="ex.: fiscal, SAP, ICMS" />
+        </div>
+        <!-- Anexos -->
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-2">Anexos (imagens)</label>
+          <div id="dropArea" class="dropzone p-4 text-sm text-slate-600 flex flex-col items-center justify-center gap-2">
+            <p>Arraste e solte imagens aqui ou</p>
+            <label class="px-3 py-2 rounded-xl bg-slate-800 text-white cursor-pointer">Selecionar imagens
+              <input type="file" id="imageInput" accept="image/*" multiple class="hidden" />
+            </label>
+            <p class="text-xs text-slate-500">As imagens ficam salvas localmente no seu navegador.</p>
+          </div>
+          <div id="thumbs" class="mt-3 flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+      <div class="px-5 py-4 border-t flex justify-end gap-2">
+        <button type="button" id="btnClearAnexos" class="px-4 py-2 rounded-2xl bg-slate-200">Limpar anexos</button>
+        <button type="submit" class="px-4 py-2 rounded-2xl bg-sky-600 text-white">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal: Detalhes -->
+  <dialog id="detailModal" class="rounded-2xl w-11/12 max-w-3xl p-0 shadow-2xl">
+    <div class="bg-white rounded-2xl">
+      <div class="flex justify-between items-center px-5 py-4 border-b">
+        <h3 class="text-lg font-semibold">Detalhes da Atividade</h3>
+        <button type="button" id="btnCloseDetail" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
+      </div>
+      <div id="detailBody" class="p-5 space-y-3 text-sm"></div>
+      <div class="px-5 py-4 border-t text-right">
+        <button type="button" id="btnCloseDetail2" class="px-4 py-2 rounded-2xl bg-slate-200">Fechar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    // ====== State & Persistência ======
+    const STORAGE_KEY = 'taskBoard_v1';
+  let tasks = load();
+  console.log('Tarefas carregadas ao iniciar:', tasks);
+    let editingId = null;
+    let anexosTemp = []; // {name, dataURL}
+
+    function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+    function load() {
+      try {
+        const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (Array.isArray(data)) return data;
+        return [];
+      } catch { return []; }
+    }
+    function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
+  console.log('Tarefas salvas:', tasks);
+
+    // ====== Utilitários ======
+    function formatDate(iso) {
+      if (!iso) return '-';
+      const d = new Date(iso + 'T00:00:00');
+      return d.toLocaleDateString('pt-BR');
+    }
+    function daysDiffFromToday(iso) {
+      if (!iso) return null;
+      const d1 = new Date(); d1.setHours(0,0,0,0);
+      const d2 = new Date(iso + 'T00:00:00');
+      return Math.round((d2 - d1) / (1000*60*60*24));
+    }
+    function badgePriority(p) {
+      const map = { 'Baixa':'bg-emerald-100 text-emerald-800', 'Média':'bg-sky-100 text-sky-800', 'Alta':'bg-amber-100 text-amber-800', 'Crítica':'bg-rose-100 text-rose-800' };
+      return `<span class="px-2 py-1 rounded-full text-xs ${map[p]||'bg-slate-100 text-slate-800'}">${p||'-'}</span>`;
+    }
+    function badgeStatus(s) {
+      const map = { 'Backlog':'bg-slate-200 text-slate-800', 'Em andamento':'bg-indigo-100 text-indigo-800', 'Bloqueado':'bg-rose-100 text-rose-800', 'Concluído':'bg-emerald-100 text-emerald-800' };
+      return `<span class="px-2 py-1 rounded-full text-xs ${map[s]||'bg-slate-100 text-slate-800'}">${s||'-'}</span>`;
+    }
+
+    // ====== Dashboard (KPIs & Charts) ======
+    const kpi = {
+      render() {
+        const total = tasks.length;
+        const done = tasks.filter(t=>t.status==='Concluído').length;
+        const doing = tasks.filter(t=>t.status==='Em andamento').length;
+        const blocked = tasks.filter(t=>t.status==='Bloqueado').length;
+        const backlog = tasks.filter(t=>t.status==='Backlog').length;
+        const overdue = tasks.filter(t=> t.due && daysDiffFromToday(t.due) < 0 && t.status !== 'Concluído').length;
+        const soon = tasks.filter(t=> t.due && daysDiffFromToday(t.due) >= 0 && daysDiffFromToday(t.due) <= 7 && t.status!=='Concluído').length;
+        const pct = total? Math.round((done/total)*100):0;
+        const cards = [
+          {label:'Total', val: total},
+          {label:'Concluídas', val: done},
+          {label:'Em andamento', val: doing},
+          {label:'Bloqueadas', val: blocked},
+          {label:'Backlog', val: backlog},
+          {label:'Vencidas', val: overdue},
+        ];
+        const el = document.getElementById('kpiCards');
+        el.innerHTML = '';
+        cards.forEach(c=>{
+          const div = document.createElement('div');
+          div.className = 'bg-white rounded-2xl shadow p-4';
+          div.innerHTML = `<div class="text-sm text-slate-500">${c.label}</div><div class="text-2xl font-bold">${c.val}</div>`;
+          el.appendChild(div);
+        });
+        // Extra: porcentagem concluída
+        const extra = document.createElement('div');
+        extra.className = 'bg-white rounded-2xl shadow p-4 col-span-2 lg:col-span-2 flex items-center justify-between';
+        extra.innerHTML = `
+          <div>
+            <div class="text-sm text-slate-500">% Concluído</div>
+            <div class="text-2xl font-bold">${pct}%</div>
+            <div class="text-xs text-slate-500">${soon} atividades com prazo nos próximos 7 dias</div>
+          </div>
+          <div class="flex-1 ml-4 h-3 bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full bg-emerald-500" style="width:${pct}%"></div>
+          </div>`;
+        el.appendChild(extra);
+      }
+    };
+
+    let statusChart, priorityChart;
+    function refreshCharts() {
+      const byStatus = ['Backlog','Em andamento','Bloqueado','Concluído'].map(s=> tasks.filter(t=>t.status===s).length);
+      const byPriority = ['Baixa','Média','Alta','Crítica'].map(p=> tasks.filter(t=>t.priority===p).length);
+
+      const ctx1 = document.getElementById('statusChart');
+      if (statusChart) statusChart.destroy();
+      statusChart = new Chart(ctx1, {
+        type: 'bar',
+        data: { labels: ['Backlog','Em andamento','Bloqueado','Concluído'], datasets: [{ label: 'Qtde', data: byStatus }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          animation: false,
+          layout: { padding: 0 },
+          scales: {
+            x: { beginAtZero: true },
+            y: { beginAtZero: true, max: Math.max(...byStatus, 5) }
+          }
+        }
+      });
+
+      const ctx2 = document.getElementById('priorityChart');
+      if (priorityChart) priorityChart.destroy();
+      priorityChart = new Chart(ctx2, {
+        type: 'doughnut',
+        data: { labels: ['Baixa','Média','Alta','Crítica'], datasets: [{ data: byPriority }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          animation: false,
+          layout: { padding: 0 }
+        }
+      });
+    }
+
+    // ====== Render Lista ======
+    function applyFilters(list) {
+      const q = document.getElementById('search').value.toLowerCase().trim();
+      const tagsOnly = document.getElementById('searchTagsOnly').checked;
+      const fs = document.getElementById('filterStatus').value;
+      const fp = document.getElementById('filterPriority').value;
+      const fa = document.getElementById('filterAssignee').value.toLowerCase().trim();
+      return list.filter(t=>{
+        let condQ;
+        if (tagsOnly) {
+          condQ = q ? (t.tags||[]).some(tag => tag.toLowerCase().includes(q)) : true;
+        } else {
+          const text = [t.title, t.assignee, (t.tags||[]).join(','), t.description].join(' ').toLowerCase();
+          condQ = q ? text.includes(q) : true;
+        }
+        const condS = fs? t.status===fs: true;
+        const condP = fp? t.priority===fp: true;
+        const condA = fa? (t.assignee||'').toLowerCase().includes(fa): true;
+        return condQ && condS && condP && condA;
+      });
+    }
+
+    function renderList() {
+      const list = applyFilters(tasks);
+      const tbody = document.getElementById('taskTable');
+      tbody.innerHTML = '';
+      document.getElementById('emptyList').classList.toggle('hidden', list.length!==0);
+      list.forEach(t=>{
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50';
+        const overdue = t.due && daysDiffFromToday(t.due) < 0 && t.status !== 'Concluído';
+        const thumbCount = (t.attachments||[]).length;
+        tr.innerHTML = `
+          <td class="px-4 py-3">
+            <div class="font-medium">${t.title}</div>
+            <div class="text-xs text-slate-500">${t.description? t.description.slice(0,80)+(t.description.length>80?'…':''):'-'}</div>
+          </td>
+          <td class="px-4 py-3">${t.assignee||'-'}</td>
+          <td class="px-4 py-3 ${overdue?'text-rose-600 font-semibold':''}">${formatDate(t.due)}</td>
+          <td class="px-4 py-3">${badgePriority(t.priority)}</td>
+          <td class="px-4 py-3">${badgeStatus(t.status)}</td>
+          <td class="px-4 py-3">${(t.tags||[]).map(x=>`<span class='text-xs bg-slate-100 rounded px-2 py-0.5 mr-1'>${x}</span>`).join('')}</td>
+          <td class="px-4 py-3">${thumbCount>0? thumbCount+' img':''}</td>
+          <td class="px-4 py-3 text-right">
+            <div class="flex justify-end gap-2">
+              <button class="px-3 py-1 rounded-xl bg-slate-200" data-act="view" data-id="${t.id}">Ver</button>
+              <button class="px-3 py-1 rounded-xl bg-amber-200" data-act="edit" data-id="${t.id}">Editar</button>
+              <button class="px-3 py-1 rounded-xl bg-rose-200" data-act="del" data-id="${t.id}">Excluir</button>
+            </div>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ====== Render Kanban ======
+    const columns = ['Backlog','Em andamento','Bloqueado','Concluído'];
+    function renderKanban() {
+      const container = document.getElementById('viewKanban');
+      container.innerHTML='';
+      columns.forEach(col=>{
+        const colDiv = document.createElement('div');
+        colDiv.className = 'bg-white rounded-2xl shadow p-3 flex flex-col';
+        colDiv.innerHTML = `<div class='font-semibold mb-2'>${col}</div><div class='space-y-2 overflow-auto' style='min-height:200px; max-height:60vh' data-col='${col}'></div>`;
+        container.appendChild(colDiv);
+      });
+
+      const list = applyFilters(tasks);
+      list.forEach(t=>{
+        const card = document.createElement('div');
+        card.className = 'rounded-xl border p-3 bg-white';
+        const overdue = t.due && daysDiffFromToday(t.due) < 0 && t.status !== 'Concluído';
+        const imgs = (t.attachments||[]).slice(0,2).map(a=>`<img src='${a.dataURL}' alt='anexo' class='h-10 w-10 object-cover rounded-lg border'/>`).join('');
+        card.innerHTML = `
+          <div class='flex items-start justify-between gap-2'>
+            <div>
+              <div class='font-medium'>${t.title}</div>
+              <div class='text-xs text-slate-500'>${t.assignee||'-'} • ${formatDate(t.due)}</div>
+            </div>
+            <div class='text-xs'>${badgePriority(t.priority)}</div>
+          </div>
+          <div class='mt-2 flex items-center gap-2'>${imgs}</div>
+          <div class='mt-2 flex justify-end gap-2'>
+            <button class='px-2 py-1 rounded-xl bg-slate-200 text-xs' data-act='view' data-id='${t.id}'>Ver</button>
+            <button class='px-2 py-1 rounded-xl bg-amber-200 text-xs' data-act='edit' data-id='${t.id}'>Editar</button>
+            <button class='px-2 py-1 rounded-xl bg-rose-200 text-xs' data-act='del' data-id='${t.id}'>Excluir</button>
+          </div>`;
+        container.querySelector(`[data-col='${t.status}']`).appendChild(card);
+      });
+    }
+
+    // ====== Modais ======
+    const modal = document.getElementById('taskModal');
+    const form = document.getElementById('taskForm');
+    const detailModal = document.getElementById('detailModal');
+
+    document.getElementById('btnNew').addEventListener('click', ()=>{
+      editingId = null; anexosTemp = []; renderThumbs();
+      form.reset();
+      document.getElementById('modalTitle').textContent = 'Nova Atividade';
+      modal.showModal();
+    });
+    document.getElementById('btnCloseModal').addEventListener('click', ()=> modal.close());
+
+    // ====== Anexos ======
+    function renderThumbs() {
+      const wrap = document.getElementById('thumbs');
+      wrap.innerHTML = '';
+      anexosTemp.forEach((a,idx)=>{
+        const d = document.createElement('div');
+        d.className = 'relative';
+        d.innerHTML = `
+          <img src='${a.dataURL}' class='h-20 w-20 object-cover rounded-xl border'/>
+          <button type='button' class='absolute -top-2 -right-2 bg-rose-600 text-white rounded-full h-6 w-6 text-xs' data-rm='${idx}'>×</button>`;
+        wrap.appendChild(d);
+      });
+    }
+
+    const imageInput = document.getElementById('imageInput');
+    imageInput.addEventListener('change', async (e)=>{
+      const files = [...e.target.files];
+      for (const f of files) {
+        const dataURL = await fileToDataURL(f);
+        anexosTemp.push({ name: f.name, dataURL });
+      }
+      renderThumbs();
+      imageInput.value = '';
+    });
+
+    document.getElementById('thumbs').addEventListener('click', (e)=>{
+      const idx = e.target.getAttribute('data-rm');
+      if (idx!==null) {
+        anexosTemp.splice(Number(idx),1);
+        renderThumbs();
+      }
+    });
+
+    const dropArea = document.getElementById('dropArea');
+    ;['dragenter','dragover'].forEach(evt=> dropArea.addEventListener(evt, (e)=>{ e.preventDefault(); dropArea.classList.add('dragover'); }));
+    ;['dragleave','drop'].forEach(evt=> dropArea.addEventListener(evt, (e)=>{ e.preventDefault(); dropArea.classList.remove('dragover'); }));
+    dropArea.addEventListener('drop', async (e)=>{
+      const files = [...e.dataTransfer.files].filter(f=> f.type.startsWith('image/'));
+      for (const f of files) { anexosTemp.push({ name: f.name, dataURL: await fileToDataURL(f) }); }
+      renderThumbs();
+    });
+
+    function fileToDataURL(file) {
+      return new Promise((res, rej)=>{
+        const fr = new FileReader();
+        fr.onload = ()=> res(fr.result);
+        fr.onerror = rej; fr.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById('btnClearAnexos').addEventListener('click', ()=>{ anexosTemp = []; renderThumbs(); });
+
+    // ====== Salvar / Editar ======
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
+      const tags = (data.tags||'').split(',').map(x=>x.trim()).filter(Boolean);
+      if (editingId) {
+        const idx = tasks.findIndex(t=>t.id===editingId);
+        tasks[idx] = { ...tasks[idx], ...data, tags, attachments: [...anexosTemp] };
+        console.log('Editando atividade:', tasks[idx]);
+      } else {
+        const nova = { id: uid(), title: data.title, assignee: data.assignee||'', due: data.due||'', priority: data.priority||'Média', status: data.status||'Backlog', description: data.description||'', tags, attachments: [...anexosTemp], createdAt: new Date().toISOString() };
+        tasks.push(nova);
+        console.log('Nova atividade adicionada:', nova);
+      }
+      save();
+      console.log('Tarefas após cadastro:', tasks);
+      modal.close();
+      renderList();
+      renderKanban();
+      kpi.render();
+      refreshCharts();
+    });
+
+    // ====== Ações da Lista/Kanban ======
+    document.getElementById('taskTable').addEventListener('click', onActionClick);
+    document.getElementById('viewKanban').addEventListener('click', onActionClick);
+
+    function onActionClick(e) {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const act = btn.getAttribute('data-act');
+      const id = btn.getAttribute('data-id');
+      const t = tasks.find(x=>x.id===id);
+      if (!t) return;
+      if (act==='del') { if (confirm('Excluir esta atividade?')) { tasks = tasks.filter(x=>x.id!==id); save(); refreshAll(); } }
+      if (act==='edit') { openEdit(t); }
+      if (act==='view') { openDetail(t); }
+    }
+
+    function openEdit(t) {
+      editingId = t.id;
+      anexosTemp = [...(t.attachments||[])];
+      renderThumbs();
+      form.title.value = t.title || '';
+      form.assignee.value = t.assignee || '';
+      form.due.value = t.due || '';
+      form.priority.value = t.priority || 'Média';
+      form.status.value = t.status || 'Backlog';
+      form.description.value = t.description || '';
+      form.tags.value = (t.tags||[]).join(', ');
+      document.getElementById('modalTitle').textContent = 'Editar Atividade';
+      modal.showModal();
+    }
+
+    function openDetail(t) {
+      const body = document.getElementById('detailBody');
+      body.innerHTML = `
+        <div><span class='text-slate-500'>Título:</span> <span class='font-medium'>${t.title}</span></div>
+        <div class='grid grid-cols-2 gap-2'>
+          <div><span class='text-slate-500'>Responsável:</span> ${t.assignee||'-'}</div>
+          <div><span class='text-slate-500'>Prazo:</span> ${formatDate(t.due)}</div>
+          <div><span class='text-slate-500'>Prioridade:</span> ${badgePriority(t.priority)}</div>
+          <div><span class='text-slate-500'>Status:</span> ${badgeStatus(t.status)}</div>
+        </div>
+        <div><span class='text-slate-500'>Descrição:</span><div class='mt-1'>${t.description||'-'}</div></div>
+        <div><span class='text-slate-500'>Tags:</span> ${(t.tags||[]).map(x=>`<span class='text-xs bg-slate-100 rounded px-2 py-0.5 mr-1'>${x}</span>`).join('') || '-'}</div>
+        <div>
+          <span class='text-slate-500'>Anexos:</span>
+          <div class='mt-2 flex flex-wrap gap-2'>
+            ${(t.attachments||[]).map(a=>`<a href='${a.dataURL}' target='_blank' class='block'><img src='${a.dataURL}' class='h-24 w-24 object-cover rounded-xl border'/></a>`).join('') || '<span>-</span>'}
+          </div>
+        </div>`;
+      detailModal.showModal();
+    }
+
+    document.getElementById('btnCloseDetail').addEventListener('click', ()=> detailModal.close());
+    document.getElementById('btnCloseDetail2').addEventListener('click', ()=> detailModal.close());
+
+    // ====== Filtros & Tabs ======
+    ['search','filterStatus','filterPriority','filterAssignee'].forEach(id=> document.getElementById(id).addEventListener('input', refreshViews));
+  document.getElementById('tabList').addEventListener('click', ()=> switchTab('list'));
+  document.getElementById('tabKanban').addEventListener('click', ()=> switchTab('kanban'));
+    function switchTab(which) {
+      document.getElementById('viewList').classList.toggle('hidden', which!=='list');
+      document.getElementById('viewKanban').classList.toggle('hidden', which!=='kanban');
+      refreshViews();
+    }
+
+    // ====== Import/Export/Reset ======
+    document.getElementById('btnExport').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(tasks, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `atividades_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    document.getElementById('inputImport').addEventListener('change', async (e)=>{
+      const file = e.target.files[0]; if (!file) return;
+      const text = await file.text();
+      let importOk = false;
+      try {
+        const data = JSON.parse(text);
+        if (Array.isArray(data)) {
+          // Garante que cada atividade tenha um id único e tags/attachments como array
+          tasks = data.map((t) => ({
+            ...t,
+            id: t.id || uid(),
+            tags: Array.isArray(t.tags) ? t.tags : (typeof t.tags === 'string' ? t.tags.split(',').map(x=>x.trim()).filter(Boolean) : []),
+            attachments: Array.isArray(t.attachments) ? t.attachments : []
+          }));
+          save();
+          console.log('Tarefas após importação:', tasks);
+          renderList();
+          renderKanban();
+          kpi.render();
+          refreshCharts();
+          alert('Importado com sucesso!');
+          importOk = true;
+        } else {
+          alert('Arquivo inválido.');
+        }
+      } catch {
+        if (!importOk) alert('JSON inválido.');
+      }
+      e.target.value = '';
+    });
+
+    document.getElementById('btnReset').addEventListener('click', ()=>{
+      if (confirm('Apagar todas as atividades e limpar o armazenamento local?')) {
+        const senha = prompt('Digite a senha para confirmar o reset:');
+        if (senha === '0000') {
+          tasks = []; save(); refreshAll();
+        } else {
+          alert('Senha incorreta. Operação cancelada.');
+        }
+      }
+    });
+
+    // ====== Refresh geral ======
+    function refreshViews() {
+      renderList();
+      renderKanban();
+    }
+    function refreshAll() {
+      kpi.render();
+      refreshCharts();
+      refreshViews();
+      // Força exibir todas as tarefas se tasks estiver vazio
+      if (!tasks || tasks.length === 0) {
+        document.getElementById('emptyList').classList.remove('hidden');
+      }
+    }
+
+    // Inicializar
+    refreshAll();
+  </script>
+</body>
+</html>
