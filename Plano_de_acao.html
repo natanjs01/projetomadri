@@ -603,9 +603,19 @@
       const id = btn.getAttribute('data-id');
       const t = tasks.find(x=>x.id===id);
       if (!t) return;
-      if (act==='del') { if (confirm('Excluir esta atividade?')) { tasks = tasks.filter(x=>x.id!==id); save(); refreshAll(); 
-        await supabaseDeleteTask(id); 
-      } }
+        if (act==='del') {
+          if (confirm('Excluir esta atividade?')) {
+            const { error } = await supabaseDeleteTask(id);
+            if (error) {
+              alert('Erro ao excluir no Supabase!');
+              console.error('Erro ao excluir no Supabase:', error);
+              return;
+            }
+            tasks = tasks.filter(x=>x.id!==id);
+            save();
+            refreshAll();
+          }
+        }
       if (act==='view') { openDetail(t); }
     }
 
@@ -706,10 +716,19 @@
       e.target.value = '';
     });
 
-    document.getElementById('btnReset').addEventListener('click', ()=>{
+    document.getElementById('btnReset').addEventListener('click', async ()=>{
       if (confirm('Apagar todas as atividades e limpar o armazenamento local?')) {
         const senha = prompt('Digite a senha para confirmar o reset:');
         if (senha === '0000') {
+          // Deleta todas as tarefas e anexos do Supabase
+          const { error: errTasks } = await supabaseClient.from('tasks').delete().neq('id', '');
+          const { error: errAttach } = await supabaseClient.from('task_attachments').delete().neq('id', '');
+          if (errTasks || errAttach) {
+            alert('Erro ao deletar dados do Supabase!');
+            console.error('Erro ao deletar tasks:', errTasks);
+            console.error('Erro ao deletar anexos:', errAttach);
+            return;
+          }
           tasks = []; save(); refreshAll();
         } else {
           alert('Senha incorreta. Operação cancelada.');
