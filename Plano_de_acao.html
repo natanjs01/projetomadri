@@ -563,9 +563,10 @@
       const tbody = document.getElementById('taskTable');
       tbody.innerHTML = '';
       document.getElementById('emptyList').classList.toggle('hidden', list.length!==0);
-      list.forEach((t) => {
+      list.forEach((t, idx) => {
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-50';
+        // Zebra: linhas pares com leve fundo
+        tr.className = 'hover:bg-slate-100' + (idx % 2 === 1 ? ' bg-slate-50' : '');
         const prazo = t.due_date || t.due;
         const overdue = prazo && daysDiffFromToday(prazo) < 0 && t.status !== 'Concluído';
         const thumbCount = (t.attachments||[]).length;
