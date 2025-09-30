@@ -35,11 +35,15 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
   <div class="max-w-7xl mx-auto p-4 md:p-6">
+    <!-- Botão Modo Escuro -->
+    <div class="flex justify-end mb-2">
+  <!-- Modo escuro removido -->
+    </div>
     <!-- Header -->
     <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold">Controle de Atividades</h1>
-        <p class="text-slate-600">Crie tarefas, anexe imagens, visualize em dashboard, lista ou Kanban. Dados salvos no seu navegador (localStorage).</p>
+  <h1 class="text-2xl md:text-3xl font-bold">Controle de Atividades</h1>
+  <p class="text-slate-600">Crie tarefas, anexe imagens, visualize em dashboard, lista ou Kanban.</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button id="btnNew" class="px-4 py-2 rounded-2xl bg-sky-600 text-white hover:bg-sky-700">+ Nova Atividade</button>
@@ -216,6 +220,7 @@
   </dialog>
 
   <script>
+
   // ====== Supabase integração ======
       const supabaseUrl = "https://iynsvuugjjbvjacrjmig.supabase.co";
       const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5bnN2dXVnampidmphY3JqbWlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODUwODksImV4cCI6MjA3NDQ2MTA4OX0.b-8p05tTG4iLbITGVdY1Da3TQbbupaYIZLfT-aMhPbk";
