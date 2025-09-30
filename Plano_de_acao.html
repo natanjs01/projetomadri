@@ -12,7 +12,16 @@
   <!-- Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    /* Scrollbar mais suave para listas de anexos e quadros */
+    /* Paleta para gráficos Chart.js (usada via getComputedStyle) */
+    :root {
+      --chart-bg: #fff;
+      --chart-fg: #0f172a;
+      --chart-emerald: #a7f3d0;
+      --chart-sky: #bae6fd;
+      --chart-amber: #fde68a;
+      --chart-rose: #fecdd3;
+      --chart-slate: #cbd5e1;
+    }
     * { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
     ::-webkit-scrollbar { height: 8px; width: 8px; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
@@ -21,7 +30,6 @@
       border: 2px dashed #94a3b8; border-radius: 1rem; transition: all .15s ease;
     }
     .dropzone.dragover { border-color: #0ea5e9; background: #f0f9ff; }
-    /* Fixar altura dos gráficos para evitar expansão infinita */
     #statusChart, #priorityChart {
       height: 280px !important;
       max-height: 280px;
@@ -34,30 +42,44 @@
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
-  <div class="max-w-7xl mx-auto p-4 md:p-6">
-    <!-- Botão Modo Escuro -->
-    <div class="flex justify-end mb-2">
-  <!-- Modo escuro removido -->
-    </div>
-    <!-- Header -->
-    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
-      <div>
-  <h1 class="text-2xl md:text-3xl font-bold">Controle de Atividades</h1>
-  <p class="text-slate-600">Crie tarefas, anexe imagens, visualize em dashboard, lista ou Kanban.</p>
+  <div class="max-w-7xl mx-auto p-4 md:p-6" role="main" aria-label="Painel de atividades">
+    <!-- UI: Header aprimorado com barra de ações, ícones SVG, toggle de tema -->
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900 p-2">
+          <!-- UI: Ícone SVG do app -->
+          <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="text-sky-600 dark:text-sky-400"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+        </span>
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-black">Controle de Atividades</h1>
+          <p class="text-slate-600 dark:text-slate-400 text-sm">Crie tarefas, anexe imagens, visualize em dashboard, lista ou Kanban.</p>
+        </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button id="btnNew" class="px-4 py-2 rounded-2xl bg-sky-600 text-white hover:bg-sky-700">+ Nova Atividade</button>
-        <button id="btnExport" class="px-4 py-2 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700">Exportar</button>
-        <label class="px-4 py-2 rounded-2xl bg-amber-600 text-white hover:bg-amber-700 cursor-pointer">
-          Importar <input type="file" id="inputImport" accept="application/json" class="hidden" />
+      <nav class="flex flex-wrap items-center gap-2 mt-3 md:mt-0" aria-label="Ações rápidas">
+        <button id="btnNew" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-600 text-white hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" aria-label="Nova Atividade">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="hidden sm:inline">Nova</span>
+        </button>
+        <button id="btnExport" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 transition" aria-label="Exportar">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+          <span class="hidden sm:inline">Exportar</span>
+        </button>
+        <label class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-600 text-white hover:bg-amber-700 focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer transition" aria-label="Importar">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
+          <span class="hidden sm:inline">Importar</span>
+          <input type="file" id="inputImport" accept="application/json" class="hidden" />
         </label>
-        <button id="btnReset" class="px-4 py-2 rounded-2xl bg-rose-600 text-white hover:bg-rose-700" title="Apagar todas as atividades">Reset</button>
-      </div>
+        <button id="btnReset" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition" title="Apagar todas as atividades" aria-label="Resetar">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6"/></svg>
+          <span class="hidden sm:inline">Reset</span>
+        </button>
+      </nav>
     </header>
 
     <!-- KPIs -->
     <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6" id="kpiCards">
-      <!-- Cards gerados via JS -->
+  <!-- UI: Cards de KPI aprimorados, grid responsiva, ícones, contraste, tendência -->
+  <!-- Cards gerados via JS -->
     </section>
 
     <!-- Charts -->
@@ -74,17 +96,18 @@
 
     <!-- Filtros / Abas -->
     <section class="bg-white rounded-2xl shadow p-4 mb-4">
-      <div class="flex flex-col md:flex-row md:items-end gap-3">
-        <div class="flex-1">
+      <!-- UI: Filtros compactos, alinhamento, placeholders claros, botão de reset, foco visível, contraste -->
+      <form class="flex flex-col md:flex-row md:items-end gap-3" role="search" aria-label="Filtros de atividades" onsubmit="return false;">
+        <div class="flex-1 min-w-[180px]">
           <label class="block text-sm font-medium mb-1" for="search">Busca</label>
-            <div class="flex gap-2 items-center">
-              <input id="search" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Título, responsável, tags..." />
-              <label class="flex gap-1 items-center text-xs text-slate-600"><input type="checkbox" id="searchTagsOnly" /> Buscar apenas por tags</label>
-            </div>
+          <div class="flex gap-2 items-center">
+            <input id="search" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" placeholder="Título, responsável, tags..." autocomplete="off" />
+            <label class="flex gap-1 items-center text-xs text-slate-600 dark:text-slate-400"><input type="checkbox" id="searchTagsOnly" class="accent-sky-600" /> Tags</label>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-medium mb-1" for="filterStatus">Status</label>
-          <select id="filterStatus" class="rounded-xl border border-slate-300 px-3 py-2">
+          <select id="filterStatus" class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition">
             <option value="">Todos</option>
             <option>Backlog</option>
             <option>Em andamento</option>
@@ -94,7 +117,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium mb-1" for="filterPriority">Prioridade</label>
-          <select id="filterPriority" class="rounded-xl border border-slate-300 px-3 py-2">
+          <select id="filterPriority" class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition">
             <option value="">Todas</option>
             <option>Baixa</option>
             <option>Média</option>
@@ -104,64 +127,73 @@
         </div>
         <div>
           <label class="block text-sm font-medium mb-1" for="filterAssignee">Responsável</label>
-          <input id="filterAssignee" class="rounded-xl border border-slate-300 px-3 py-2" placeholder="Ex.: Ana" />
+          <input id="filterAssignee" class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" placeholder="Ex.: Ana" autocomplete="off" />
         </div>
-        <div class="flex gap-2">
-          <button id="tabList" class="px-4 py-2 rounded-2xl bg-slate-200 hover:bg-slate-300">Lista</button>
-          <button id="tabKanban" class="px-4 py-2 rounded-2xl bg-slate-200 hover:bg-slate-300">Kanban</button>
+        <div class="flex gap-2 mt-2 md:mt-0">
+          <button id="tabList" class="px-4 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-100 hover:bg-sky-100 dark:hover:bg-sky-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" type="button">Lista</button>
+          <button id="tabKanban" class="px-4 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-100 hover:bg-sky-100 dark:hover:bg-sky-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" type="button">Kanban</button>
+          <button id="btnResetFilters" class="px-4 py-2 rounded-2xl bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-200 hover:bg-rose-200 dark:hover:bg-rose-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition" type="reset" title="Limpar filtros" aria-label="Limpar filtros">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
         </div>
-      </div>
+      </form>
     </section>
 
     <!-- Conteúdo: Lista -->
     <section id="viewList" class="bg-white rounded-2xl shadow overflow-x-auto">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-100 text-slate-700">
-          <tr>
-            <th class="text-left px-4 py-3">Título</th>
-            <th class="text-left px-4 py-3">Responsável</th>
-            <th class="text-left px-4 py-3">Prazo</th>
-            <th class="text-left px-4 py-3">Prioridade</th>
-            <th class="text-left px-4 py-3">Status</th>
-            <th class="text-left px-4 py-3">Tags</th>
-            <th class="text-left px-4 py-3">Anexos</th>
-            <th class="px-4 py-3">Ações</th>
-          </tr>
-        </thead>
-        <tbody id="taskTable" class="divide-y"></tbody>
-      </table>
-      <div id="emptyList" class="hidden p-6 text-center text-slate-500">Nenhuma atividade encontrada…</div>
+      <!-- UI: Tabela aprimorada, cabeçalho sticky, zebra rows, chips, badges, foco visível, contraste -->
+      <div class="overflow-x-auto rounded-2xl">
+        <table class="min-w-full text-sm border-separate border-spacing-0" aria-label="Lista de atividades">
+          <thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 sticky top-0 z-10 shadow-sm">
+            <tr>
+              <th scope="col" class="text-left px-4 py-3 font-semibold">Título</th>
+              <th scope="col" class="text-left px-4 py-3 font-semibold">Responsável</th>
+              <th scope="col" class="text-left px-4 py-3 font-semibold">Prazo</th>
+              <th scope="col" class="text-left px-4 py-3 font-semibold">Prioridade</th>
+              <th scope="col" class="text-left px-4 py-3 font-semibold">Status</th>
+              <th scope="col" class="text-left px-4 py-3 font-semibold">Tags</th>
+              <th scope="col" class="text-left px-4 py-3 font-semibold">Anexos</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="taskTable" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+        </table>
+      </div>
+  <div id="loadingList" class="hidden p-6 text-center text-slate-500 dark:text-slate-400 animate-pulse" aria-live="polite">Carregando atividades…</div>
+  <div id="errorList" class="hidden p-6 text-center text-rose-600 dark:text-rose-400" aria-live="assertive">Erro ao carregar atividades. Tente novamente.</div>
+  <div id="emptyList" class="hidden p-6 text-center text-slate-500 dark:text-slate-400" aria-live="polite">Nenhuma atividade encontrada…</div>
     </section>
 
     <!-- Conteúdo: Kanban -->
     <section id="viewKanban" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <!-- Colunas geradas via JS -->
+  <!-- UI: Kanban aprimorado, colunas distintas, cabeçalho com contagem, cartões legíveis, tags, miniaturas, responsividade, acessibilidade -->
+  <!-- Colunas geradas via JS -->
     </section>
   </div>
 
   <!-- Modal: Nova/Editar Atividade -->
   <dialog id="taskModal" class="rounded-2xl w-11/12 max-w-3xl p-0 shadow-2xl">
-    <form id="taskForm" class="bg-white rounded-2xl">
+    <form id="taskForm" class="bg-white rounded-2xl" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="flex justify-between items-center px-5 py-4 border-b">
         <h3 id="modalTitle" class="text-lg font-semibold">Nova Atividade</h3>
         <button type="button" id="btnCloseModal" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
       </div>
       <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="md:col-span-2">
-          <label class="block text-sm font-medium mb-1">Título *</label>
-          <input required name="title" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Ex.: Publicar especificação do módulo fiscal" />
+          <label class="block text-sm font-medium mb-1" for="inputTitle">Título *</label>
+          <input required name="title" id="inputTitle" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Ex.: Publicar especificação do módulo fiscal" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">Responsável</label>
-          <input name="assignee" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Ex.: Natanael" />
+          <label class="block text-sm font-medium mb-1" for="inputAssignee">Responsável</label>
+          <input name="assignee" id="inputAssignee" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" placeholder="Ex.: Natanael" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">Prazo</label>
-          <input type="date" name="due" class="w-full rounded-xl border border-slate-300 px-3 py-2" />
+          <label class="block text-sm font-medium mb-1" for="inputDue">Prazo</label>
+          <input type="date" name="due" id="inputDue" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" />
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">Prioridade</label>
-          <select name="priority" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+          <label class="block text-sm font-medium mb-1" for="inputPriority">Prioridade</label>
+          <select name="priority" id="inputPriority" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition">
             <option>Baixa</option>
             <option>Média</option>
             <option selected>Alta</option>
@@ -169,8 +201,8 @@
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">Status</label>
-          <select name="status" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+          <label class="block text-sm font-medium mb-1" for="inputStatus">Status</label>
+          <select name="status" id="inputStatus" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition">
             <option>Backlog</option>
             <option selected>Em andamento</option>
             <option>Bloqueado</option>
@@ -178,29 +210,29 @@
           </select>
         </div>
         <div class="md:col-span-2">
-          <label class="block text-sm font-medium mb-1">Descrição</label>
-          <textarea name="description" rows="3" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="Contexto, escopo, critérios de aceite…"></textarea>
+          <label class="block text-sm font-medium mb-1" for="inputDescription">Descrição</label>
+          <textarea name="description" id="inputDescription" rows="3" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" placeholder="Contexto, escopo, critérios de aceite…"></textarea>
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">Tags (separe por vírgula)</label>
-          <input name="tags" class="w-full rounded-xl border border-slate-300 px-3 py-2" placeholder="ex.: fiscal, SAP, ICMS" />
+          <label class="block text-sm font-medium mb-1" for="inputTags">Tags (separe por vírgula)</label>
+          <input name="tags" id="inputTags" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" placeholder="ex.: fiscal, SAP, ICMS" />
         </div>
         <!-- Anexos -->
         <div class="md:col-span-2">
           <label class="block text-sm font-medium mb-2">Anexos (imagens)</label>
-          <div id="dropArea" class="dropzone p-4 text-sm text-slate-600 flex flex-col items-center justify-center gap-2">
+          <div id="dropArea" class="dropzone p-4 text-sm text-slate-600 dark:text-slate-400 flex flex-col items-center justify-center gap-2 transition-all" aria-label="Área de anexos" tabindex="0">
             <p>Arraste e solte imagens aqui ou</p>
-            <label class="px-3 py-2 rounded-xl bg-slate-800 text-white cursor-pointer">Selecionar imagens
+            <label class="px-3 py-2 rounded-xl bg-slate-800 dark:bg-slate-700 text-white cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition">Selecionar imagens
               <input type="file" id="imageInput" accept="image/*" multiple class="hidden" />
             </label>
-            <p class="text-xs text-slate-500">As imagens ficam salvas localmente no seu navegador.</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">As imagens ficam salvas localmente no seu navegador.</p>
           </div>
           <div id="thumbs" class="mt-3 flex flex-wrap gap-2"></div>
         </div>
       </div>
-      <div class="px-5 py-4 border-t flex justify-end gap-2">
-        <button type="button" id="btnClearAnexos" class="px-4 py-2 rounded-2xl bg-slate-200">Limpar anexos</button>
-        <button type="submit" class="px-4 py-2 rounded-2xl bg-sky-600 text-white">Salvar</button>
+      <div class="px-5 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+        <button type="button" id="btnClearAnexos" class="px-4 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-100 hover:bg-sky-100 dark:hover:bg-sky-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition">Limpar anexos</button>
+        <button type="submit" class="px-4 py-2 rounded-2xl bg-sky-600 text-white hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition">Salvar</button>
       </div>
     </form>
   </dialog>
@@ -220,6 +252,12 @@
   </dialog>
 
   <script>
+  // Corrige botão Limpar filtros para atualizar a lista
+  document.getElementById('btnResetFilters').addEventListener('click', function(e) {
+    setTimeout(refreshViews, 0);
+  });
+  // UI: Tema claro/escuro com toggle, persistência e integração Chart.js
+  // Modo escuro removido
 
   // ====== Supabase integração ======
       const supabaseUrl = "https://iynsvuugjjbvjacrjmig.supabase.co";
@@ -346,37 +384,46 @@
         const doing = tasks.filter(t=>t.status==='Em andamento').length;
         const blocked = tasks.filter(t=>t.status==='Bloqueado').length;
         const backlog = tasks.filter(t=>t.status==='Backlog').length;
-  const overdue = tasks.filter(t=> t.due_date && daysDiffFromToday(t.due_date) < 0 && t.status !== 'Concluído').length;
-  const soon = tasks.filter(t=> t.due_date && daysDiffFromToday(t.due_date) >= 0 && daysDiffFromToday(t.due_date) <= 7 && t.status!=='Concluído').length;
+        const overdue = tasks.filter(t=> t.due_date && daysDiffFromToday(t.due_date) < 0 && t.status !== 'Concluído').length;
+        const soon = tasks.filter(t=> t.due_date && daysDiffFromToday(t.due_date) >= 0 && daysDiffFromToday(t.due_date) <= 7 && t.status!=='Concluído').length;
         const pct = total? Math.round((done/total)*100):0;
         const cards = [
-          {label:'Total', val: total},
-          {label:'Concluídas', val: done},
-          {label:'Em andamento', val: doing},
-          {label:'Bloqueadas', val: blocked},
-          {label:'Backlog', val: backlog},
-          {label:'Vencidas', val: overdue},
+          {label:'Total', val: total, icon:`<svg width='22' height='22' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/></svg>`, color:'bg-white'},
+          {label:'Concluídas', val: done, icon:`<svg width='22' height='22' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M5 13l4 4L19 7'/></svg>`, color:'bg-white'},
+          {label:'Em andamento', val: doing, icon:`<svg width='22' height='22' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><path d='M12 6v6l4 2'/></svg>`, color:'bg-white'},
+          {label:'Bloqueadas', val: blocked, icon:`<svg width='22' height='22' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><rect x='3' y='11' width='18' height='7' rx='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/></svg>`, color:'bg-white'},
+          {label:'Backlog', val: backlog, icon:`<svg width='22' height='22' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><rect x='3' y='7' width='18' height='13' rx='2'/><path d='M16 3v4M8 3v4'/></svg>`, color:'bg-white'},
+          {label:'Vencidas', val: overdue, icon:`<svg width='22' height='22' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><path d='M12 8v4l3 3'/></svg>`, color:'bg-white'},
         ];
         const el = document.getElementById('kpiCards');
         el.innerHTML = '';
-        cards.forEach(c=>{
+        cards.forEach((c) => {
           const div = document.createElement('div');
-          div.className = 'bg-white rounded-2xl shadow p-4';
-          div.innerHTML = `<div class="text-sm text-slate-500">${c.label}</div><div class="text-2xl font-bold">${c.val}</div>`;
+          div.className = `${c.color} rounded-2xl shadow p-4 flex flex-col gap-2 items-start`;
+          div.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center justify-center rounded-full bg-white/80 p-1">${c.icon}</span>
+              <span class="text-xs font-medium text-slate-500">${c.label}</span>
+            </div>
+            <div class="text-2xl font-bold text-slate-800">${c.val}</div>
+          `;
           el.appendChild(div);
         });
         // Extra: porcentagem concluída
         const extra = document.createElement('div');
-        extra.className = 'bg-white rounded-2xl shadow p-4 col-span-2 lg:col-span-2 flex items-center justify-between';
+        extra.className = 'col-span-2 lg:col-span-2 flex flex-col md:flex-row items-center justify-between gap-2 bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-4 border border-slate-100 dark:border-slate-800';
         extra.innerHTML = `
           <div>
-            <div class="text-sm text-slate-500">% Concluído</div>
-            <div class="text-2xl font-bold">${pct}%</div>
-            <div class="text-xs text-slate-500">${soon} atividades com prazo nos próximos 7 dias</div>
+            <div class="text-sm text-slate-500 dark:text-slate-400">% Concluído</div>
+            <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">${pct}%</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">${soon} atividades com prazo nos próximos 7 dias</div>
           </div>
-          <div class="flex-1 ml-4 h-3 bg-slate-100 rounded-full overflow-hidden">
-            <div class="h-full bg-emerald-500" style="width:${pct}%"></div>
+          <div class="flex-1 ml-4 h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full bg-emerald-500 dark:bg-emerald-600 transition-all duration-200" style="width:${pct}%"></div>
           </div>`;
+        extra.setAttribute('tabindex','0');
+        extra.setAttribute('role','region');
+        extra.setAttribute('aria-label','Porcentagem concluída');
         el.appendChild(extra);
       }
     };
@@ -388,18 +435,56 @@
 
       const ctx1 = document.getElementById('statusChart');
       if (statusChart) statusChart.destroy();
+      // UI: Cores dinâmicas Chart.js via CSS
+      const cs = getComputedStyle(document.documentElement);
+      const chartColors = {
+        bg: cs.getPropertyValue('--chart-bg').trim(),
+        fg: cs.getPropertyValue('--chart-fg').trim(),
+        emerald: cs.getPropertyValue('--chart-emerald').trim(),
+        sky: cs.getPropertyValue('--chart-sky').trim(),
+        amber: cs.getPropertyValue('--chart-amber').trim(),
+        rose: cs.getPropertyValue('--chart-rose').trim(),
+        slate: cs.getPropertyValue('--chart-slate').trim(),
+      };
       statusChart = new Chart(ctx1, {
         type: 'bar',
-        data: { labels: ['Backlog','Em andamento','Bloqueado','Concluído'], datasets: [{ label: 'Qtde', data: byStatus }] },
+        data: {
+          labels: ['Backlog','Em andamento','Bloqueado','Concluído'],
+          datasets: [{
+            label: 'Qtde',
+            data: byStatus,
+            backgroundColor: [chartColors.slate, chartColors.sky, chartColors.rose, chartColors.emerald],
+            borderRadius: 6,
+            borderSkipped: false
+          }]
+        },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: chartColors.bg,
+              titleColor: chartColors.fg,
+              bodyColor: chartColors.fg,
+              borderColor: chartColors.slate,
+              borderWidth: 1
+            }
+          },
           animation: false,
           layout: { padding: 0 },
           scales: {
-            x: { beginAtZero: true },
-            y: { beginAtZero: true, max: Math.max(...byStatus, 5) }
+            x: {
+              beginAtZero: true,
+              grid: { color: chartColors.slate+"22" },
+              ticks: { color: chartColors.fg }
+            },
+            y: {
+              beginAtZero: true,
+              max: Math.max(...byStatus, 5),
+              grid: { color: chartColors.slate+"22" },
+              ticks: { color: chartColors.fg }
+            }
           }
         }
       });
@@ -408,11 +493,34 @@
       if (priorityChart) priorityChart.destroy();
       priorityChart = new Chart(ctx2, {
         type: 'doughnut',
-        data: { labels: ['Baixa','Média','Alta','Crítica'], datasets: [{ data: byPriority }] },
+        data: {
+          labels: ['Baixa','Média','Alta','Crítica'],
+          datasets: [{
+            data: byPriority,
+            backgroundColor: [chartColors.emerald, chartColors.sky, chartColors.amber, chartColors.rose],
+            borderColor: chartColors.bg,
+            borderWidth: 2
+          }]
+        },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom' } },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: chartColors.fg,
+                font: { size: 13, family: 'inherit' }
+              }
+            },
+            tooltip: {
+              backgroundColor: chartColors.bg,
+              titleColor: chartColors.fg,
+              bodyColor: chartColors.fg,
+              borderColor: chartColors.slate,
+              borderWidth: 1
+            }
+          },
           animation: false,
           layout: { padding: 0 }
         }
@@ -442,23 +550,44 @@
     }
 
     function renderList() {
-      const list = applyFilters(tasks);
+      let list = applyFilters(tasks);
+      // Ordena pelo prazo mais próximo do vencimento (ascendente), tarefas sem prazo vão para o final
+      list = list.slice().sort((a, b) => {
+        const pa = a.due_date || a.due;
+        const pb = b.due_date || b.due;
+        if (!pa && !pb) return 0;
+        if (!pa) return 1;
+        if (!pb) return -1;
+        return new Date(pa) - new Date(pb);
+      });
       const tbody = document.getElementById('taskTable');
       tbody.innerHTML = '';
       document.getElementById('emptyList').classList.toggle('hidden', list.length!==0);
-      list.forEach(t=>{
+      list.forEach((t) => {
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-50';
-  const prazo = t.due_date || t.due;
-  const overdue = prazo && daysDiffFromToday(prazo) < 0 && t.status !== 'Concluído';
+        const prazo = t.due_date || t.due;
+        const overdue = prazo && daysDiffFromToday(prazo) < 0 && t.status !== 'Concluído';
         const thumbCount = (t.attachments||[]).length;
+        let soon = false;
+        let soonText = '';
+        if (prazo && !overdue) {
+          const diff = daysDiffFromToday(prazo);
+          if (diff >= 0 && diff <= 7) {
+            soon = true;
+            soonText = `<div class='flex justify-center'><span class='inline-block mt-1 px-2 py-0.5 rounded bg-black text-red-500 font-bold text-xs'>D-${diff}</span></div>`;
+          }
+        }
         tr.innerHTML = `
           <td class="px-4 py-3">
             <div class="font-medium">${t.title}</div>
             <div class="text-xs text-slate-500">${t.description? t.description.slice(0,80)+(t.description.length>80?'…':''):'-'}</div>
           </td>
           <td class="px-4 py-3">${t.assignee||'-'}</td>
-          <td class="px-4 py-3 ${overdue?'text-rose-600 font-semibold':''}">${formatDate(prazo)}</td>
+          <td class="px-4 py-3 ${overdue?'text-rose-600 font-semibold':''}">
+            ${formatDate(prazo)}
+            ${soonText}
+          </td>
           <td class="px-4 py-3">${badgePriority(t.priority)}</td>
           <td class="px-4 py-3">${badgeStatus(t.status)}</td>
           <td class="px-4 py-3">${(t.tags||[]).map(x=>`<span class='text-xs bg-slate-100 rounded px-2 py-0.5 mr-1'>${x}</span>`).join('')}</td>
@@ -479,32 +608,54 @@
     function renderKanban() {
       const container = document.getElementById('viewKanban');
       container.innerHTML='';
-      columns.forEach(col=>{
+      // Cores e ícones para colunas
+      const colMeta = {
+        'Backlog':   { color: 'bg-slate-50', icon: `<svg width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><rect x='3' y='7' width='18' height='13' rx='2'/><path d='M16 3v4M8 3v4'/></svg>` },
+        'Em andamento': { color: 'bg-sky-50', icon: `<svg width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><path d='M12 6v6l4 2'/></svg>` },
+        'Bloqueado': { color: 'bg-rose-50', icon: `<svg width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><rect x='3' y='11' width='18' height='7' rx='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/></svg>` },
+        'Concluído': { color: 'bg-emerald-50', icon: `<svg width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M5 13l4 4L19 7'/></svg>` },
+      };
+      columns.forEach(col => {
         const colDiv = document.createElement('div');
-        colDiv.className = 'bg-white rounded-2xl shadow p-3 flex flex-col';
-        colDiv.innerHTML = `<div class='font-semibold mb-2'>${col}</div><div class='space-y-2 overflow-auto' style='min-height:200px; max-height:60vh' data-col='${col}'></div>`;
+        colDiv.className = `${colMeta[col].color} rounded-2xl shadow-sm p-3 flex flex-col min-h-[260px]`;
+        // Contagem de cards na coluna
+        const count = applyFilters(tasks).filter(t => t.status === col).length;
+        colDiv.innerHTML = `
+          <div class='flex items-center gap-2 mb-2 sticky top-0 z-10'>
+            <span class='inline-flex items-center justify-center rounded-full bg-white p-1 border border-slate-200'>${colMeta[col].icon}</span>
+            <span class='font-semibold text-black'>${col}</span>
+            <span class='ml-auto text-xs font-bold bg-slate-100 text-black rounded-full px-2 py-0.5'>${count}</span>
+          </div>
+          <div class='space-y-3 overflow-auto' style='min-height:200px; max-height:60vh' data-col='${col}'></div>`;
         container.appendChild(colDiv);
       });
 
       const list = applyFilters(tasks);
-      list.forEach(t=>{
+      list.forEach(t => {
         const card = document.createElement('div');
-        card.className = 'rounded-xl border p-3 bg-white';
-        const overdue = t.due && daysDiffFromToday(t.due) < 0 && t.status !== 'Concluído';
-        const imgs = (t.attachments||[]).slice(0,2).map(a=>`<img src='${a.dataURL}' alt='anexo' class='h-10 w-10 object-cover rounded-lg border'/>`).join('');
+        card.className = 'rounded-xl border border-slate-200 p-3 bg-white shadow-sm flex flex-col gap-2 text-black';
+        const prazo = t.due_date || t.due;
+        const overdue = prazo && daysDiffFromToday(prazo) < 0 && t.status !== 'Concluído';
+        const soon = prazo && daysDiffFromToday(prazo) >= 0 && daysDiffFromToday(prazo) <= 7 && t.status !== 'Concluído';
+        // Chip de prazo
+        let prazoChip = '';
+        if (overdue) prazoChip = `<span class='ml-2 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-100' aria-label='Vencida'>Vencida</span>`;
+        else if (soon) prazoChip = `<span class='ml-2 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100' aria-label='D-${daysDiffFromToday(prazo)}'>D-${daysDiffFromToday(prazo)}</span>`;
+        else if (prazo && daysDiffFromToday(prazo) === 0) prazoChip = `<span class='ml-2 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-100' aria-label='Hoje'>Hoje</span>`;
+        const imgs = (t.attachments||[]).slice(0,2).map(a=>`<img src='${a.dataURL}' alt='Miniatura do anexo da tarefa ${t.title}' class='h-8 w-8 object-cover rounded-lg border border-slate-200' loading='lazy'/>`).join('');
         card.innerHTML = `
           <div class='flex items-start justify-between gap-2'>
-            <div>
-              <div class='font-medium'>${t.title}</div>
-              <div class='text-xs text-slate-500'>${t.assignee||'-'} • ${formatDate(t.due)}</div>
+            <div class='flex-1 min-w-0'>
+              <div class='font-medium text-black truncate'>${t.title}</div>
+              <div class='text-xs text-slate-700 truncate'>${t.assignee||'-'} • ${formatDate(prazo)}${prazoChip}</div>
             </div>
             <div class='text-xs'>${badgePriority(t.priority)}</div>
           </div>
-          <div class='mt-2 flex items-center gap-2'>${imgs}</div>
-          <div class='mt-2 flex justify-end gap-2'>
-            <button class='px-2 py-1 rounded-xl bg-slate-200 text-xs' data-act='view' data-id='${t.id}'>Ver</button>
-            <button class='px-2 py-1 rounded-xl bg-amber-200 text-xs' data-act='edit' data-id='${t.id}'>Editar</button>
-            <button class='px-2 py-1 rounded-xl bg-rose-200 text-xs' data-act='del' data-id='${t.id}'>Excluir</button>
+          <div class='flex flex-wrap items-center gap-2 mt-1'>${(t.tags||[]).map(x=>`<span class='text-xs font-medium bg-slate-100 border border-slate-200 rounded px-2 py-0.5 mr-1'>${x}</span>`).join('')}${imgs}</div>
+          <div class='flex justify-end gap-2 mt-2'>
+            <button class='px-2 py-1 rounded-xl bg-slate-200 text-xs' data-act='view' data-id='${t.id}' aria-label='Ver detalhes'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><circle cx='12' cy='12' r='4'/></svg></button>
+            <button class='px-2 py-1 rounded-xl bg-amber-200 text-xs' data-act='edit' data-id='${t.id}' aria-label='Editar'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M12 20h9'/><path d='M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z'/></svg></button>
+            <button class='px-2 py-1 rounded-xl bg-rose-200 text-xs' data-act='del' data-id='${t.id}' aria-label='Excluir'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6'/></svg></button>
           </div>`;
         container.querySelector(`[data-col='${t.status}']`).appendChild(card);
       });
@@ -657,7 +808,7 @@
         <div>
           <span class='text-slate-500'>Anexos:</span>
           <div class='mt-2 flex flex-wrap gap-2'>
-            ${(t.attachments||[]).map(a=>`<a href='${a.dataURL}' target='_blank' class='block'><img src='${a.dataURL}' class='h-24 w-24 object-cover rounded-xl border'/></a>`).join('') || '<span>-</span>'}
+            ${(t.attachments||[]).map(a=>`<a href='${a.dataURL}' target='_blank' class='block'><img src='${a.dataURL}' class='h-24 w-24 object-cover rounded-xl border' alt='Anexo da tarefa ${t.title}' loading='lazy'/></a>`).join('') || '<span>-</span>'}
           </div>
         </div>`;
       detailModal.showModal();
@@ -768,8 +919,20 @@
     // Inicializar
     // Inicializar
     async function startApp() {
-      await loadTasksFromSupabase();
-      await refreshAll();
+      document.getElementById('loadingList').classList.remove('hidden');
+      document.getElementById('errorList').classList.add('hidden');
+      document.getElementById('emptyList').classList.add('hidden');
+      try {
+        await loadTasksFromSupabase();
+        await refreshAll();
+        document.getElementById('loadingList').classList.add('hidden');
+        if (!tasks || tasks.length === 0) {
+          document.getElementById('emptyList').classList.remove('hidden');
+        }
+      } catch (e) {
+        document.getElementById('loadingList').classList.add('hidden');
+        document.getElementById('errorList').classList.remove('hidden');
+      }
     }
     startApp();
   </script>
