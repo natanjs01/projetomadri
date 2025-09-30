@@ -346,8 +346,8 @@
         const doing = tasks.filter(t=>t.status==='Em andamento').length;
         const blocked = tasks.filter(t=>t.status==='Bloqueado').length;
         const backlog = tasks.filter(t=>t.status==='Backlog').length;
-        const overdue = tasks.filter(t=> t.due && daysDiffFromToday(t.due) < 0 && t.status !== 'Concluído').length;
-        const soon = tasks.filter(t=> t.due && daysDiffFromToday(t.due) >= 0 && daysDiffFromToday(t.due) <= 7 && t.status!=='Concluído').length;
+  const overdue = tasks.filter(t=> t.due_date && daysDiffFromToday(t.due_date) < 0 && t.status !== 'Concluído').length;
+  const soon = tasks.filter(t=> t.due_date && daysDiffFromToday(t.due_date) >= 0 && daysDiffFromToday(t.due_date) <= 7 && t.status!=='Concluído').length;
         const pct = total? Math.round((done/total)*100):0;
         const cards = [
           {label:'Total', val: total},
