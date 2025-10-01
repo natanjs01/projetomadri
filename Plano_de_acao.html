@@ -46,14 +46,23 @@
       .grid, .grid-cols-2, .grid-cols-4, .grid-cols-6, .grid-cols-1, .lg\:grid-cols-2 {
         grid-template-columns: 1fr !important;
       }
-      table {
+      /* Filtros em coluna, não em linha */
+      form[role="search"], .filtros-mobile-col {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.5rem !important;
+      }
+      /* Tabela com rolagem horizontal */
+      .tabela-responsive, table {
         display: block;
         width: 100vw !important;
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
       th, td {
         white-space: nowrap;
         font-size: 0.95em;
+        min-width: 110px;
       }
       #statusChart, #priorityChart {
         min-width: 320px !important;
