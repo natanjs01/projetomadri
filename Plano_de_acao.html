@@ -9,6 +9,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Chart.js DataLabels Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <script>
+    // Registrar o plugin globalmente para evitar erros
+    window.addEventListener('DOMContentLoaded', function() {
+      if (window.Chart && window.ChartDataLabels) {
+        Chart.register(window.ChartDataLabels);
+      }
+    });
+  </script>
   <!-- Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -64,11 +74,17 @@
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
           <span class="hidden sm:inline">Exportar</span>
         </button>
+  <!-- html2pdf.js CDN para exportação em PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
         <label class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-600 text-white hover:bg-amber-700 focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer transition" aria-label="Importar">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
           <span class="hidden sm:inline">Importar</span>
           <input type="file" id="inputImport" accept="application/json" class="hidden" />
         </label>
+        <button id="btnExportPDF" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 transition" aria-label="Exportar PDF do Dashboard">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+          <span class="hidden sm:inline">PDF Dashboard</span>
+        </button>
         <button id="btnReset" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition" title="Apagar todas as atividades" aria-label="Resetar">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6"/></svg>
           <span class="hidden sm:inline">Reset</span>
@@ -469,7 +485,8 @@
               bodyColor: chartColors.fg,
               borderColor: chartColors.slate,
               borderWidth: 1
-            }
+            },
+            datalabels: { display: false }
           },
           animation: false,
           layout: { padding: 0 },
@@ -486,7 +503,8 @@
               ticks: { color: chartColors.fg }
             }
           }
-        }
+        },
+        plugins: []
       });
 
       const ctx2 = document.getElementById('priorityChart');
@@ -519,11 +537,13 @@
               bodyColor: chartColors.fg,
               borderColor: chartColors.slate,
               borderWidth: 1
-            }
+            },
+            datalabels: { display: false }
           },
           animation: false,
           layout: { padding: 0 }
-        }
+        },
+        plugins: []
       });
     }
 
@@ -936,6 +956,96 @@
       }
     }
     startApp();
+    // Exportar PDF do Dashboard
+    document.getElementById('btnExportPDF').addEventListener('click', function () {
+      // Ativa datalabels só para exportação
+      const originalStatus = { ...statusChart.options.plugins.datalabels };
+      const originalPriority = { ...priorityChart.options.plugins.datalabels };
+      statusChart.options.plugins.datalabels = {
+        ...originalStatus,
+        anchor: 'end',
+        align: 'top',
+        color: '#0f172a',
+        font: { weight: 'bold', size: 14 },
+        formatter: function(value) { return value; },
+        display: true
+      };
+      priorityChart.options.plugins.datalabels = {
+        ...originalPriority,
+        color: '#0f172a',
+        font: { weight: 'bold', size: 14 },
+        formatter: function(value, ctx) {
+          const label = ctx.chart.data.labels[ctx.dataIndex];
+          return value > 0 ? label + ': ' + value : '';
+        },
+        display: true
+      };
+      statusChart.update();
+      priorityChart.update();
+
+      // Monta o dashboard para PDF
+      const dashboard = document.createElement('div');
+      dashboard.style.background = getComputedStyle(document.body).backgroundColor;
+      dashboard.style.color = getComputedStyle(document.body).color;
+      dashboard.style.padding = '24px';
+      dashboard.className = 'bg-slate-50 text-slate-800';
+      // Título
+      const titulo = document.createElement('h1');
+      titulo.textContent = 'Dashboard de Atividades';
+      titulo.style.fontSize = '2rem';
+      titulo.style.fontWeight = 'bold';
+      titulo.style.marginBottom = '24px';
+      dashboard.appendChild(titulo);
+      // KPIs
+      const kpi = document.getElementById('kpiCards').cloneNode(true);
+      dashboard.appendChild(kpi);
+      // Charts: copiar os títulos e os CANVAS renderizados
+      const chartsSection = document.createElement('section');
+      chartsSection.className = 'grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6';
+      // Status das Atividades
+      const chart1Div = document.createElement('div');
+      chart1Div.className = 'bg-white rounded-2xl shadow p-4';
+      const chart1Title = document.createElement('h2');
+      chart1Title.className = 'font-semibold mb-2';
+      chart1Title.textContent = 'Status das Atividades';
+      chart1Div.appendChild(chart1Title);
+      // Copia o canvas renderizado
+      const statusCanvas = document.getElementById('statusChart');
+      const statusImg = document.createElement('img');
+      statusImg.src = statusCanvas.toDataURL('image/png');
+      statusImg.style.width = '100%';
+      statusImg.style.maxHeight = '280px';
+      chart1Div.appendChild(statusImg);
+      chartsSection.appendChild(chart1Div);
+      // Prioridade
+      const chart2Div = document.createElement('div');
+      chart2Div.className = 'bg-white rounded-2xl shadow p-4';
+      const chart2Title = document.createElement('h2');
+      chart2Title.className = 'font-semibold mb-2';
+      chart2Title.textContent = 'Prioridade';
+      chart2Div.appendChild(chart2Title);
+      const priorityCanvas = document.getElementById('priorityChart');
+      const priorityImg = document.createElement('img');
+      priorityImg.src = priorityCanvas.toDataURL('image/png');
+      priorityImg.style.width = '100%';
+      priorityImg.style.maxHeight = '280px';
+      chart2Div.appendChild(priorityImg);
+      chartsSection.appendChild(chart2Div);
+      dashboard.appendChild(chartsSection);
+      html2pdf().set({
+        margin: 0.5,
+        filename: 'dashboard_atividades.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, backgroundColor: null },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+      }).from(dashboard).save().then(()=>{
+        // Restaura o estado original dos gráficos
+        statusChart.options.plugins.datalabels = originalStatus;
+        priorityChart.options.plugins.datalabels = originalPriority;
+        statusChart.update();
+        priorityChart.update();
+      });
+    });
   </script>
 </body>
 </html>
