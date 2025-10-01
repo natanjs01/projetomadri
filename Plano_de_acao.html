@@ -27,17 +27,20 @@
   <style>
     /* Responsividade para rotação horizontal em dispositivos móveis */
     @media screen and (max-width: 900px) and (orientation: landscape) {
-      /* Cards de KPI mais compactos */
+      /* Cards de KPI em linha única com rolagem horizontal */
       #kpiCards {
-        grid-template-columns: repeat(2, 1fr) !important;
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
         gap: 0.5rem !important;
+        padding-bottom: 0.5rem;
       }
       #kpiCards > div {
-        min-width: 120px !important;
-        max-width: 180px !important;
-        padding: 0.5rem 0.5rem !important;
-        font-size: 0.95em !important;
-        margin: 0 auto !important;
+        min-width: 160px !important;
+        max-width: 220px !important;
+        flex: 0 0 auto !important;
+        border-radius: 1rem !important;
+        margin: 0 !important;
       }
       html, body {
         font-size: 0.95rem;
