@@ -27,13 +27,13 @@
   <style>
     /* Paleta para gráficos Chart.js (usada via getComputedStyle) */
     :root {
-      --chart-bg: #fff;
-      --chart-fg: #0f172a;
-      --chart-emerald: #a7f3d0;
-      --chart-sky: #bae6fd;
-      --chart-amber: #fde68a;
-      --chart-rose: #fecdd3;
-      --chart-slate: #cbd5e1;
+  --chart-bg: #fff;
+  --chart-fg: #0f172a;
+  --chart-emerald: #3ba97d;
+  --chart-sky: #2586b6;
+  --chart-amber: #bfa13b;
+  --chart-rose: #b85c6b;
+  --chart-slate: #6b7a8c;
     }
     * { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
     ::-webkit-scrollbar { height: 8px; width: 8px; }
@@ -510,7 +510,12 @@
           datasets: [{
             label: 'Qtde',
             data: byStatus,
-            backgroundColor: [chartColors.slate, chartColors.sky, chartColors.rose, chartColors.emerald],
+            backgroundColor: [
+              '#00C853', // Verde vivo
+              '#FFD600', // Amarelo vivo
+              '#2962FF', // Azul vivo
+              '#D50000'  // Vermelho vivo
+            ],
             borderRadius: 6,
             borderSkipped: false
           }]
@@ -556,7 +561,12 @@
           labels: ['Baixa','Média','Alta','Crítica'],
           datasets: [{
             data: byPriority,
-            backgroundColor: [chartColors.emerald, chartColors.sky, chartColors.amber, chartColors.rose],
+            backgroundColor: [
+              '#00C853', // Verde vivo
+              '#FFD600', // Amarelo vivo
+              '#2962FF', // Azul vivo
+              '#D50000'  // Vermelho vivo
+            ],
             borderColor: chartColors.bg,
             borderWidth: 2
           }]
