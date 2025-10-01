@@ -21,6 +21,9 @@
   </script>
   <!-- Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- jsPDF e autotable para exportação PDF profissional -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <style>
     /* Paleta para gráficos Chart.js (usada via getComputedStyle) */
     :root {
@@ -74,22 +77,60 @@
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
           <span class="hidden sm:inline">Exportar</span>
         </button>
-  <!-- html2pdf.js CDN para exportação em PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
         <label class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-600 text-white hover:bg-amber-700 focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer transition" aria-label="Importar">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
           <span class="hidden sm:inline">Importar</span>
           <input type="file" id="inputImport" accept="application/json" class="hidden" />
         </label>
-        <button id="btnExportPDF" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 transition" aria-label="Exportar PDF do Dashboard">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
-          <span class="hidden sm:inline">PDF Dashboard</span>
+  <!-- botão PDF removido, só menu lateral de relatórios permanece -->
+        <button id="btnRelatorios" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 transition" aria-label="Abrir menu de relatórios" type="button">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          <span class="hidden sm:inline">Relatórios</span>
         </button>
+        <!-- Off-canvas menu lateral de relatórios -->
+        <div id="offcanvasRelatorios" class="fixed top-0 right-0 h-full w-80 max-w-full bg-white shadow-2xl border-l border-slate-200 z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col" style="display:none;">
+          <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h3 class="text-lg font-semibold">Relatórios</h3>
+            <button id="btnCloseRelatorios" class="text-slate-500 hover:text-slate-900 text-2xl font-bold" title="Fechar">&times;</button>
+          </div>
+          <div class="flex-1 p-6 flex flex-col gap-4">
+            <button id="btnExportPDF" class="flex items-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition w-full" type="button">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+              PDF Dashboard
+            </button>
+            <button id="btnExportListPDF" class="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition w-full" type="button">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+              Lista PDF
+            </button>
+            <!-- Outras opções de relatórios podem ser adicionadas aqui -->
+          </div>
+        </div>
         <button id="btnReset" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition" title="Apagar todas as atividades" aria-label="Resetar">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6"/></svg>
           <span class="hidden sm:inline">Reset</span>
         </button>
       </nav>
+    <script>
+      // Off-canvas menu lateral de relatórios
+      const btnRelatorios = document.getElementById('btnRelatorios');
+      const offcanvas = document.getElementById('offcanvasRelatorios');
+      const btnCloseRelatorios = document.getElementById('btnCloseRelatorios');
+      btnRelatorios.addEventListener('click', function() {
+        offcanvas.style.display = 'flex';
+        setTimeout(()=>{offcanvas.classList.remove('translate-x-full');}, 10);
+      });
+      btnCloseRelatorios.addEventListener('click', function() {
+        offcanvas.classList.add('translate-x-full');
+        setTimeout(()=>{offcanvas.style.display = 'none';}, 300);
+      });
+      // Fecha ao clicar fora do menu
+      document.addEventListener('mousedown', function(e) {
+        if (offcanvas.style.display === 'flex' && !offcanvas.contains(e.target) && e.target !== btnRelatorios) {
+          offcanvas.classList.add('translate-x-full');
+          setTimeout(()=>{offcanvas.style.display = 'none';}, 300);
+        }
+      });
+    </script>
     </header>
 
     <!-- KPIs -->
@@ -697,36 +738,17 @@
 
     // ====== Anexos ======
     function renderThumbs() {
-      const wrap = document.getElementById('thumbs');
-      wrap.innerHTML = '';
-      anexosTemp.forEach((a,idx)=>{
-        const d = document.createElement('div');
-        d.className = 'relative';
-        d.innerHTML = `
-          <img src='${a.dataURL}' class='h-20 w-20 object-cover rounded-xl border'/>
-          <button type='button' class='absolute -top-2 -right-2 bg-rose-600 text-white rounded-full h-6 w-6 text-xs' data-rm='${idx}'>×</button>`;
-        wrap.appendChild(d);
-      });
-    }
-
-    const imageInput = document.getElementById('imageInput');
-    imageInput.addEventListener('change', async (e)=>{
-      const files = [...e.target.files];
-      for (const f of files) {
-        const dataURL = await fileToDataURL(f);
-        anexosTemp.push({ name: f.name, dataURL });
-      }
-      renderThumbs();
-      imageInput.value = '';
-    });
-
-    document.getElementById('thumbs').addEventListener('click', (e)=>{
-      const idx = e.target.getAttribute('data-rm');
-      if (idx!==null) {
-        anexosTemp.splice(Number(idx),1);
-        renderThumbs();
-      }
-    });
+  const wrap = document.getElementById('thumbs');
+  wrap.innerHTML = '';
+  anexosTemp.forEach((a,idx)=>{
+    const d = document.createElement('div');
+    d.className = 'relative';
+    d.innerHTML = `
+      <img src='${a.dataURL}' class='h-20 w-20 object-cover rounded-xl border'/>
+      <button type='button' class='absolute -top-2 -right-2 bg-rose-600 text-white rounded-full h-6 w-6 text-xs' data-rm='${idx}'>×</button>`;
+    wrap.appendChild(d);
+  });
+}
 
     const dropArea = document.getElementById('dropArea');
     ;['dragenter','dragover'].forEach(evt=> dropArea.addEventListener(evt, (e)=>{ e.preventDefault(); dropArea.classList.add('dragover'); }));
@@ -956,8 +978,23 @@
       }
     }
     startApp();
-    // Exportar PDF do Dashboard
-    document.getElementById('btnExportPDF').addEventListener('click', function () {
+    // Exportar PDF do Dashboard (restaurado e robusto)
+    function setupPDFExportButton() {
+      const btnExportPDF = document.getElementById('btnExportPDF');
+      if (!btnExportPDF) return;
+      btnExportPDF.onclick = function () {
+        if (!window.html2pdf) {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+          script.onload = exportDashboardPDF;
+          document.body.appendChild(script);
+        } else {
+          exportDashboardPDF();
+        }
+      };
+    }
+
+    function exportDashboardPDF() {
       // Ativa datalabels só para exportação
       const originalStatus = { ...statusChart.options.plugins.datalabels };
       const originalPriority = { ...priorityChart.options.plugins.datalabels };
@@ -1045,7 +1082,84 @@
         statusChart.update();
         priorityChart.update();
       });
+    }
+
+    // Garante que os handlers dos botões de relatório sejam sempre aplicados após o carregamento
+    window.addEventListener('DOMContentLoaded', function() {
+      setupPDFExportButton();
+      // Handler para Lista PDF
+      const btnExportListPDF = document.getElementById('btnExportListPDF');
+      if (btnExportListPDF) {
+        btnExportListPDF.onclick = function () {
+          if (!window.html2pdf) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            script.onload = exportListPDF;
+            document.body.appendChild(script);
+          } else {
+            exportListPDF();
+          }
+        };
+      }
     });
+
+    // Função para exportar a lista filtrada em PDF usando jsPDF autotable
+    function exportListPDF() {
+      let list = applyFilters(tasks);
+      // Ordena pelo prazo mais próximo do vencimento (ascendente), tarefas sem prazo vão para o final
+      list = list.slice().sort((a, b) => {
+        const pa = a.due_date || a.due;
+        const pb = b.due_date || b.due;
+        if (!pa && !pb) return 0;
+        if (!pa) return 1;
+        if (!pb) return -1;
+        return new Date(pa) - new Date(pb);
+      });
+
+      // Cabeçalhos da tabela
+      const headers = [
+        'Título',
+        'Responsável',
+        'Prazo',
+        'Prioridade',
+        'Status',
+        'Tags'
+      ];
+
+      // Dados da tabela
+      const data = list.map(t => [
+        t.title || '-',
+        t.assignee || '-',
+        formatDate(t.due_date || t.due),
+        t.priority || '-',
+        t.status || '-',
+        (t.tags || []).join(', ') || '-'
+      ]);
+
+      // Cria o PDF
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+      doc.setFontSize(16);
+      doc.text('Lista de Atividades Filtradas', 40, 40);
+
+      doc.autoTable({
+        head: [headers],
+        body: data,
+        startY: 60,
+        margin: { left: 20, right: 20 },
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [241, 245, 249] },
+        didDrawPage: function (data) {
+          doc.setFontSize(10);
+          doc.setTextColor(150);
+          doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), data.settings.margin.left, doc.internal.pageSize.height - 10);
+        }
+      });
+
+      doc.save('lista_atividades.pdf');
+    }
   </script>
 </body>
 </html>
