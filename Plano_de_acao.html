@@ -169,6 +169,10 @@
             <!-- Outras opções de relatórios podem ser adicionadas aqui -->
           </div>
         </div>
+        <button id="btnManageStatus" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 transition" title="Gerenciar Status" aria-label="Gerenciar Status">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="hidden sm:inline">Status</span>
+        </button>
         <button id="btnReset" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition" title="Apagar todas as atividades" aria-label="Resetar">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6"/></svg>
           <span class="hidden sm:inline">Reset</span>
@@ -373,6 +377,84 @@
     </div>
   </dialog>
 
+  <!-- Modal: Gerenciar Status -->
+  <dialog id="statusModal" class="rounded-2xl w-11/12 max-w-2xl p-0 shadow-2xl">
+    <div class="bg-white rounded-2xl">
+      <div class="flex justify-between items-center px-5 py-4 border-b">
+        <h3 class="text-lg font-semibold">Gerenciar Status</h3>
+        <button type="button" id="btnCloseStatusModal" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
+      </div>
+      <div class="p-5">
+        <!-- Adicionar novo status -->
+        <div class="mb-6 p-4 bg-slate-50 rounded-xl">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-medium">Adicionar Novo Status</h4>
+            <div id="editModeIndicator" class="hidden px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+              Modo Edição
+            </div>
+          </div>
+          <div class="flex gap-3 items-end">
+            <div class="flex-1">
+              <label class="block text-sm font-medium mb-1">Nome do Status</label>
+              <input type="text" id="newStatusName" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400" placeholder="Ex: Aguardando Aprovação">
+            </div>
+            <div class="flex-1">
+              <label class="block text-sm font-medium mb-1">Cor (classe CSS)</label>
+              <select id="newStatusColor" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400">
+                <option value="bg-slate-200 text-slate-800">Cinza (Padrão)</option>
+                <option value="bg-blue-100 text-blue-800">Azul</option>
+                <option value="bg-indigo-100 text-indigo-800">Índigo</option>
+                <option value="bg-purple-100 text-purple-800">Roxo</option>
+                <option value="bg-pink-100 text-pink-800">Rosa</option>
+                <option value="bg-red-100 text-red-800">Vermelho</option>
+                <option value="bg-orange-100 text-orange-800">Laranja</option>
+                <option value="bg-amber-100 text-amber-800">Âmbar</option>
+                <option value="bg-yellow-100 text-yellow-800">Amarelo</option>
+                <option value="bg-lime-100 text-lime-800">Lima</option>
+                <option value="bg-green-100 text-green-800">Verde</option>
+                <option value="bg-emerald-100 text-emerald-800">Esmeralda</option>
+                <option value="bg-teal-100 text-teal-800">Verde-azulado</option>
+                <option value="bg-cyan-100 text-cyan-800">Ciano</option>
+              </select>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" id="btnAddStatus" class="px-4 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition">
+                Adicionar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instruções para Supabase -->
+        <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+          <h4 class="font-medium text-blue-800 mb-2">📝 Primeira vez usando status personalizados?</h4>
+          <p class="text-sm text-blue-700 mb-2">Para salvar no Supabase, é necessário criar a tabela <code class="bg-blue-100 px-1 rounded">custom_status</code>:</p>
+          <details class="text-xs">
+            <summary class="cursor-pointer text-blue-600 font-medium">Ver código SQL</summary>
+            <pre class="mt-2 p-2 bg-blue-100 rounded text-blue-800 overflow-x-auto">CREATE TABLE custom_status (
+  id UUID PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  color VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);</pre>
+          </details>
+        </div>
+
+        <!-- Lista de status existentes -->
+        <div>
+          <h4 class="font-medium mb-3">Status Existentes</h4>
+          <div id="statusList" class="space-y-2">
+            <!-- Status serão carregados dinamicamente aqui -->
+          </div>
+        </div>
+      </div>
+      <div class="px-5 py-4 border-t text-right">
+        <button type="button" id="btnCloseStatusModal2" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 transition mr-2">Fechar</button>
+        <button type="button" id="btnSaveStatusToSupabase" class="px-4 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition">Salvar no Supabase</button>
+      </div>
+    </div>
+  </dialog>
+
   <script>
   // Corrige botão Limpar filtros para atualizar a lista
   document.getElementById('btnResetFilters').addEventListener('click', function(e) {
@@ -449,6 +531,462 @@
           await supabaseInsertTask(t);
         }
       }
+
+    // ====== Gerenciamento de Status ======
+    const STATUS_STORAGE_KEY = 'taskBoard_status_v1';
+    let customStatusList = [];
+
+    // Status padrão do sistema
+    const defaultStatusMap = {
+      'Backlog': 'bg-slate-200 text-slate-800',
+      'Em andamento': 'bg-indigo-100 text-indigo-800', 
+      'Bloqueado': 'bg-rose-100 text-rose-800',
+      'Concluído': 'bg-emerald-100 text-emerald-800'
+    };
+
+    // Carregar status personalizados do localStorage
+    function loadCustomStatus() {
+      const stored = localStorage.getItem(STATUS_STORAGE_KEY);
+      if (stored) {
+        try {
+          customStatusList = JSON.parse(stored);
+        } catch (e) {
+          console.error('Erro ao carregar status personalizados:', e);
+          customStatusList = [];
+        }
+      }
+    }
+
+    // Salvar status personalizados no localStorage
+    function saveCustomStatus() {
+      localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(customStatusList));
+    }
+
+    // Obter todos os status (padrão + personalizados)
+    function getAllStatus() {
+      const statusMap = {...defaultStatusMap};
+      customStatusList.forEach(status => {
+        statusMap[status.name] = status.color;
+      });
+      return statusMap;
+    }
+
+    // Obter lista de nomes de status
+    function getAllStatusNames() {
+      return Object.keys(getAllStatus());
+    }
+
+    // Função para atualizar os selects de status
+    function updateStatusSelects() {
+      const statusNames = getAllStatusNames();
+      
+      // Atualizar select de filtro
+      const filterStatus = document.getElementById('filterStatus');
+      const currentFilterValue = filterStatus.value;
+      filterStatus.innerHTML = '<option value="">Todos</option>';
+      statusNames.forEach(status => {
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status;
+        if (status === currentFilterValue) option.selected = true;
+        filterStatus.appendChild(option);
+      });
+
+      // Atualizar select do formulário
+      const inputStatus = document.getElementById('inputStatus');
+      const currentInputValue = inputStatus.value;
+      inputStatus.innerHTML = '';
+      statusNames.forEach(status => {
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status;
+        if (status === currentInputValue || (status === 'Em andamento' && !currentInputValue)) {
+          option.selected = true;
+        }
+        inputStatus.appendChild(option);
+      });
+    }
+
+    // Função badgeStatus atualizada para usar status personalizados
+    function badgeStatusUpdated(s) {
+      const statusMap = getAllStatus();
+      return `<span class="px-2 py-1 rounded-full text-xs ${statusMap[s]||'bg-slate-100 text-slate-800'}">${s||'-'}</span>`;
+    }
+
+    // Adicionar novo status ou salvar edição
+    function addNewStatus(name, color) {
+      const addButton = document.getElementById('btnAddStatus');
+      const editingStatus = addButton.getAttribute('data-editing');
+      
+      if (editingStatus) {
+        // Modo edição
+        const success = saveStatusChanges(editingStatus, name, color);
+        if (success) {
+          cancelEditStatus();
+        }
+        return success;
+      } else {
+        // Modo adição
+        if (!name || !name.trim()) {
+          alert('Nome do status é obrigatório');
+          return false;
+        }
+
+        const trimmedName = name.trim();
+        
+        // Verificar se já existe
+        if (getAllStatusNames().includes(trimmedName)) {
+          alert('Este status já existe');
+          return false;
+        }
+
+        // Adicionar à lista
+        customStatusList.push({
+          name: trimmedName,
+          color: color || 'bg-slate-200 text-slate-800'
+        });
+
+        saveCustomStatus();
+        updateStatusSelects();
+        renderStatusList();
+        refreshViews();
+        
+        showStatusMessage(`Status "${trimmedName}" adicionado com sucesso!`, 'success');
+        return true;
+      }
+    }
+
+    // Excluir status personalizado
+    function deleteCustomStatus(name) {
+      // Não permitir exclusão de status padrão
+      if (defaultStatusMap[name]) {
+        alert('Não é possível excluir status padrão do sistema');
+        return;
+      }
+
+      // Verificar se alguma tarefa usa este status
+      const tasksUsingStatus = tasks.filter(task => task.status === name);
+      if (tasksUsingStatus.length > 0) {
+        if (!confirm(`Existem ${tasksUsingStatus.length} tarefas usando este status. Deseja continuar? As tarefas precisarão ter seu status alterado manualmente.`)) {
+          return;
+        }
+      }
+
+      if (confirm(`Tem certeza que deseja excluir o status "${name}"?`)) {
+        // Remover da lista
+        customStatusList = customStatusList.filter(status => status.name !== name);
+        saveCustomStatus();
+        updateStatusSelects();
+        renderStatusList();
+        refreshViews();
+        
+        // Mostrar mensagem de sucesso
+        showStatusMessage(`Status "${name}" excluído com sucesso!`, 'success');
+      }
+    }
+
+    // Editar status personalizado
+    function editCustomStatus(name) {
+      // Não permitir edição de status padrão
+      if (defaultStatusMap[name]) {
+        alert('Não é possível editar status padrão do sistema');
+        return;
+      }
+
+      // Encontrar o status na lista
+      const statusIndex = customStatusList.findIndex(status => status.name === name);
+      if (statusIndex === -1) {
+        alert('Status não encontrado');
+        return;
+      }
+
+      const currentStatus = customStatusList[statusIndex];
+      
+      // Preencher o formulário de edição com os dados atuais
+      document.getElementById('newStatusName').value = currentStatus.name;
+      document.getElementById('newStatusColor').value = currentStatus.color;
+      
+      // Alterar o botão para modo edição
+      const addButton = document.getElementById('btnAddStatus');
+      addButton.textContent = 'Salvar Alterações';
+      addButton.className = 'px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 transition';
+      
+      // Adicionar atributo para identificar que está editando
+      addButton.setAttribute('data-editing', name);
+      
+      // Mostrar indicador de modo edição
+      document.getElementById('editModeIndicator').classList.remove('hidden');
+      
+      // Mostrar botão cancelar
+      let cancelButton = document.getElementById('btnCancelEdit');
+      if (!cancelButton) {
+        cancelButton = document.createElement('button');
+        cancelButton.id = 'btnCancelEdit';
+        cancelButton.type = 'button';
+        cancelButton.textContent = 'Cancelar';
+        cancelButton.className = 'px-4 py-2 rounded-xl bg-slate-400 text-white hover:bg-slate-500 transition';
+        addButton.parentNode.appendChild(cancelButton);
+        
+        cancelButton.addEventListener('click', cancelEditStatus);
+      }
+      cancelButton.style.display = 'inline-block';
+      
+      // Focar no campo nome
+      document.getElementById('newStatusName').focus();
+    }
+
+    // Cancelar edição de status
+    function cancelEditStatus() {
+      const addButton = document.getElementById('btnAddStatus');
+      const cancelButton = document.getElementById('btnCancelEdit');
+      
+      // Restaurar estado original do botão
+      addButton.textContent = 'Adicionar';
+      addButton.className = 'px-4 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition';
+      addButton.removeAttribute('data-editing');
+      
+      // Esconder indicador de modo edição
+      document.getElementById('editModeIndicator').classList.add('hidden');
+      
+      // Esconder botão cancelar
+      if (cancelButton) {
+        cancelButton.style.display = 'none';
+      }
+      
+      // Limpar formulário
+      document.getElementById('newStatusName').value = '';
+      document.getElementById('newStatusColor').value = 'bg-slate-200 text-slate-800';
+    }
+
+    // Função para salvar alterações no status (modificação do addNewStatus)
+    function saveStatusChanges(oldName, newName, newColor) {
+      if (!newName || !newName.trim()) {
+        alert('Nome do status é obrigatório');
+        return false;
+      }
+
+      const trimmedName = newName.trim();
+      
+      // Se o nome mudou, verificar se já existe outro com esse nome
+      if (oldName !== trimmedName && getAllStatusNames().includes(trimmedName)) {
+        alert('Já existe um status com este nome');
+        return false;
+      }
+
+      // Encontrar e atualizar o status
+      const statusIndex = customStatusList.findIndex(status => status.name === oldName);
+      if (statusIndex !== -1) {
+        const oldStatusName = customStatusList[statusIndex].name;
+        customStatusList[statusIndex] = {
+          name: trimmedName,
+          color: newColor || 'bg-slate-200 text-slate-800'
+        };
+
+        // Se o nome mudou, atualizar todas as tarefas que usam este status
+        if (oldStatusName !== trimmedName) {
+          tasks.forEach(task => {
+            if (task.status === oldStatusName) {
+              task.status = trimmedName;
+            }
+          });
+          
+          // Salvar tarefas atualizadas
+          save();
+          
+          // Sincronizar com Supabase se necessário
+          supabaseBulkInsertTasks(tasks);
+        }
+
+        saveCustomStatus();
+        updateStatusSelects();
+        renderStatusList();
+        refreshViews();
+        
+        showStatusMessage(`Status "${trimmedName}" atualizado com sucesso!`, 'success');
+        return true;
+      }
+      
+      return false;
+    }
+
+    // Mostrar mensagem de status
+    function showStatusMessage(message, type = 'info') {
+      // Remover notificação anterior se existir
+      const existingNotification = document.getElementById('statusNotification');
+      if (existingNotification) {
+        existingNotification.remove();
+      }
+      
+      // Criar nova notificação
+      const notification = document.createElement('div');
+      notification.id = 'statusNotification';
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: -400px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 9999;
+        transition: right 0.3s ease-in-out;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        max-width: 300px;
+        word-wrap: break-word;
+        cursor: pointer;
+      `;
+      
+      // Definir cor baseada no tipo
+      const colors = {
+        success: '#10b981', // Verde
+        error: '#ef4444',   // Vermelho
+        info: '#3b82f6'     // Azul
+      };
+      
+      // Aplicar cor de fundo
+      notification.style.backgroundColor = colors[type] || colors.info;
+      
+      // Definir ícone baseado no tipo
+      const icons = {
+        success: '✓',
+        error: '⚠',
+        info: 'ℹ'
+      };
+      
+      notification.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 16px;">${icons[type] || icons.info}</span>
+            <span>${message}</span>
+          </div>
+          <span style="font-size: 18px; opacity: 0.7; line-height: 1;">×</span>
+        </div>
+      `;
+      
+      // Função para esconder e remover notificação
+      function hideNotification() {
+        notification.style.right = '-400px';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 300);
+      }
+      
+      // Permitir fechar clicando na notificação
+      notification.addEventListener('click', hideNotification);
+      
+      // Adicionar ao DOM
+      document.body.appendChild(notification);
+      
+      // Mostrar notificação (animar para dentro)
+      setTimeout(() => {
+        notification.style.right = '20px';
+      }, 50);
+      
+      // Esconder após 4 segundos
+      setTimeout(hideNotification, 4000);
+    }
+
+    // Renderizar lista de status no modal
+    function renderStatusList() {
+      const statusList = document.getElementById('statusList');
+      const allStatus = getAllStatus();
+      
+      statusList.innerHTML = '';
+      
+      Object.keys(allStatus).forEach(statusName => {
+        const statusColor = allStatus[statusName];
+        const isDefault = defaultStatusMap[statusName];
+        
+        const statusItem = document.createElement('div');
+        statusItem.className = 'flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl';
+        
+        statusItem.innerHTML = `
+          <div class="flex items-center gap-3">
+            <span class="px-2 py-1 rounded-full text-xs ${statusColor}">${statusName}</span>
+            <span class="text-sm text-slate-600">${isDefault ? '(Padrão)' : '(Personalizado)'}</span>
+          </div>
+          <div class="flex gap-2">
+            ${!isDefault ? `
+              <button onclick="editCustomStatus('${statusName}')" class="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition">Editar</button>
+              <button onclick="deleteCustomStatus('${statusName}')" class="px-3 py-1 text-xs bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition">Excluir</button>
+            ` : ''}
+          </div>
+        `;
+        
+        statusList.appendChild(statusItem);
+      });
+    }
+
+    // Salvar status personalizados no Supabase
+    async function saveStatusToSupabase() {
+      try {
+        // Primeiro, verificar se a tabela existe e criar se necessário
+        const testQuery = await supabaseClient.from('custom_status').select('id').limit(1);
+        
+        if (testQuery.error && testQuery.error.message.includes('does not exist')) {
+          // Tabela não existe, vamos criar através de uma inserção
+          console.log('Tabela custom_status será criada automaticamente');
+        }
+        
+        // Limpar registros existentes de status personalizados
+        const { error: deleteError } = await supabaseClient.from('custom_status').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+        
+        if (deleteError && !deleteError.message.includes('does not exist')) {
+          console.warn('Aviso ao limpar status existentes:', deleteError);
+        }
+        
+        // Inserir status personalizados
+        if (customStatusList.length > 0) {
+          const statusData = customStatusList.map(status => ({
+            id: window.crypto ? crypto.randomUUID() : Math.random().toString(36),
+            name: status.name,
+            color: status.color,
+            created_at: new Date().toISOString()
+          }));
+          
+          const { error } = await supabaseClient.from('custom_status').insert(statusData);
+          if (error) {
+            console.error('Erro ao salvar status no Supabase:', error);
+            showStatusMessage('Erro ao salvar status no Supabase. Verifique se a tabela existe.', 'error');
+          } else {
+            showStatusMessage('Status salvos no Supabase com sucesso!', 'success');
+          }
+        } else {
+          showStatusMessage('Status personalizados removidos do Supabase!', 'success');
+        }
+      } catch (error) {
+        console.error('Erro ao conectar com Supabase:', error);
+        showStatusMessage('Erro ao conectar com Supabase: ' + error.message, 'error');
+      }
+    }
+
+    // Carregar status personalizados do Supabase
+    async function loadStatusFromSupabase() {
+      try {
+        const { data, error } = await supabaseClient.from('custom_status').select('*');
+        if (error) {
+          // Se a tabela não existir, será criada automaticamente pelo Supabase quando inserirmos dados
+          if (error.message.includes('relation "public.custom_status" does not exist')) {
+            console.log('Tabela custom_status não existe ainda. Será criada quando necessário.');
+          } else {
+            console.error('Erro ao carregar status do Supabase:', error);
+          }
+        } else if (data && data.length > 0) {
+          customStatusList = data.map(item => ({
+            name: item.name,
+            color: item.color
+          }));
+          saveCustomStatus();
+          updateStatusSelects();
+        }
+      } catch (error) {
+        console.error('Erro ao conectar com Supabase para carregar status:', error);
+      }
+    }
+
     // ====== State & Persistência ======
     const STORAGE_KEY = 'taskBoard_v1';
   let tasks = [];
@@ -542,8 +1080,8 @@
       return `<span class="px-2 py-1 rounded-full text-xs ${map[p]||'bg-slate-100 text-slate-800'}">${p||'-'}</span>`;
     }
     function badgeStatus(s) {
-      const map = { 'Backlog':'bg-slate-200 text-slate-800', 'Em andamento':'bg-indigo-100 text-indigo-800', 'Bloqueado':'bg-rose-100 text-rose-800', 'Concluído':'bg-emerald-100 text-emerald-800' };
-      return `<span class="px-2 py-1 rounded-full text-xs ${map[s]||'bg-slate-100 text-slate-800'}">${s||'-'}</span>`;
+      const statusMap = getAllStatus();
+      return `<span class="px-2 py-1 rounded-full text-xs ${statusMap[s]||'bg-slate-100 text-slate-800'}">${s||'-'}</span>`;
     }
 
     // ====== Dashboard (KPIs & Charts) ======
@@ -1097,6 +1635,45 @@
       }
     });
 
+    // ====== Event Listeners do Modal de Status ======
+    const statusModal = document.getElementById('statusModal');
+    
+    // Abrir modal de status
+    document.getElementById('btnManageStatus').addEventListener('click', ()=>{
+      renderStatusList();
+      statusModal.showModal();
+    });
+    
+    // Fechar modal de status
+    document.getElementById('btnCloseStatusModal').addEventListener('click', ()=> statusModal.close());
+    document.getElementById('btnCloseStatusModal2').addEventListener('click', ()=> statusModal.close());
+    
+    // Adicionar novo status
+    document.getElementById('btnAddStatus').addEventListener('click', ()=>{
+      const name = document.getElementById('newStatusName').value;
+      const color = document.getElementById('newStatusColor').value;
+      
+      if (addNewStatus(name, color)) {
+        document.getElementById('newStatusName').value = '';
+        document.getElementById('newStatusColor').value = 'bg-slate-200 text-slate-800';
+        refreshViews();
+      }
+    });
+    
+    // Salvar status no Supabase
+    document.getElementById('btnSaveStatusToSupabase').addEventListener('click', saveStatusToSupabase);
+    
+    // Permitir adicionar status com Enter
+    document.getElementById('newStatusName').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('btnAddStatus').click();
+      }
+    });
+    
+    // Tornar funções globais para uso no HTML
+    window.deleteCustomStatus = deleteCustomStatus;
+    window.editCustomStatus = editCustomStatus;
+
     // ====== Refresh geral ======
     function refreshViews() {
       renderList();
@@ -1119,7 +1696,16 @@
       document.getElementById('errorList').classList.add('hidden');
       document.getElementById('emptyList').classList.add('hidden');
       try {
+        // Carregar status personalizados primeiro
+        loadCustomStatus();
+        await loadStatusFromSupabase();
+        
+        // Carregar tarefas
         await loadTasksFromSupabase();
+        
+        // Atualizar selects com status personalizados
+        updateStatusSelects();
+        
         await refreshAll();
         document.getElementById('loadingList').classList.add('hidden');
         if (!tasks || tasks.length === 0) {
@@ -1128,6 +1714,7 @@
       } catch (e) {
         document.getElementById('loadingList').classList.add('hidden');
         document.getElementById('errorList').classList.remove('hidden');
+        console.error('Erro na inicialização:', e);
       }
     }
     startApp();
