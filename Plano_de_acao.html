@@ -466,64 +466,183 @@
   // ====== Supabase integração ======
       const supabaseUrl = "https://iynsvuugjjbvjacrjmig.supabase.co";
       const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5bnN2dXVnampidmphY3JqbWlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODUwODksImV4cCI6MjA3NDQ2MTA4OX0.b-8p05tTG4iLbITGVdY1Da3TQbbupaYIZLfT-aMhPbk";
-  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+      
+      // Verificar se o Supabase está disponível
+      if (typeof supabase === 'undefined') {
+        console.error('Supabase não foi carregado!');
+        alert('Erro: Biblioteca Supabase não foi carregada. Verifique a conexão com a internet.');
+      }
+      
+      const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+      
+      // Testar conexão com Supabase
+      supabaseClient.from('tasks').select('count', { count: 'exact', head: true })
+        .then(({ count, error }) => {
+          if (error) {
+            console.error('Erro ao conectar com Supabase:', error);
+          } else {
+            console.log('Conexão com Supabase OK. Total de tarefas:', count);
+          }
+        });
 
       // Buscar tasks do Supabase e exibir no console
       async function fetchTasksSupabase() {
-        const { data, error } = await supabaseClient.from('tasks').select('*');
-        if (error) {
-          console.error('Erro ao buscar tasks do Supabase:', error);
-        } else {
-          console.log('Tasks do Supabase:', data);
+        try {
+          console.log('Testando conexão inicial com Supabase...');
+          const { data, error } = await supabaseClient.from('tasks').select('*');
+          if (error) {
+            console.error('Erro ao buscar tasks do Supabase:', error);
+          } else {
+            console.log('Conexão inicial com Supabase OK. Tasks encontradas:', data?.length || 0);
+          }
+        } catch (error) {
+          console.error('Erro na conexão inicial com Supabase:', error);
         }
       }
-      fetchTasksSupabase();
+      // Não executar fetchTasksSupabase automaticamente, aguardar a inicialização completa
 
       // Funções Supabase para CRUD
       async function supabaseInsertTask(task) {
-        // Monta payload para tasks, removendo attachments
-        const { attachments, ...payload } = task;
-        // Corrige nome do campo de data
-        if (payload.due) {
-          payload.due_date = payload.due;
-          delete payload.due;
-        }
-        // tags precisa ser array de string
-        if (typeof payload.tags === 'string') {
-          payload.tags = payload.tags.split(',').map(x=>x.trim()).filter(Boolean);
-        }
-        const { data, error } = await supabaseClient.from('tasks').upsert([payload], { onConflict: ['id'] });
-        if (error) {
-          console.error('Erro ao salvar no Supabase:', error, payload);
-        } else {
-          console.log('Tarefa salva no Supabase:', data, payload);
-        }
-        // Salva anexos na tabela task_attachments
-        if (Array.isArray(attachments) && attachments.length > 0) {
-          for (const a of attachments) {
-            const { data: attachData, error: attachError } = await supabaseClient.from('task_attachments').upsert([
-              {
-                id: a.id || (window.crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)),
-                task_id: payload.id,
-                file_name: a.name,
-                file_url: a.dataURL,
-                created_at: new Date().toISOString()
+        try {
+          // Monta payload para tasks, removendo attachments
+          const { attachments, ...payload } = task;
+          
+          // Corrige nome do campo de data para Supabase
+          if (payload.due) {
+            payload.due_date = payload.due;
+            delete payload.due;
+          }
+          
+          // Corrige nome do campo createdAt para created_at
+          if (payload.createdAt) {
+            payload.created_at = payload.createdAt;
+            delete payload.createdAt;
+          }
+          
+          // Se não existe created_at, criar agora
+          if (!payload.created_at) {
+            payload.created_at = new Date().toISOString();
+          }
+          
+          // tags precisa ser array de string
+          if (typeof payload.tags === 'string') {
+            payload.tags = payload.tags.split(',').map(x=>x.trim()).filter(Boolean);
+          }
+          
+          console.log('Tentando salvar tarefa no Supabase:', payload);
+          
+          // Log detalhado dos campos para debug
+          console.log('Campos sendo enviados:', {
+            id: payload.id,
+            sequential_id: payload.sequential_id,
+            title: payload.title,
+            assignee: payload.assignee,
+            due_date: payload.due_date,
+            priority: payload.priority,
+            status: payload.status,
+            description: payload.description,
+            tags: payload.tags,
+            created_at: payload.created_at
+          });
+          
+          const { data, error } = await supabaseClient.from('tasks').upsert([payload], { onConflict: ['id'] });
+          if (error) {
+            console.error('Erro ao salvar no Supabase:', error);
+            console.error('Detalhes do erro:', {
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code
+            });
+            console.error('Payload que causou o erro:', payload);
+            
+            // Salvar localmente como fallback
+            console.log('Salvando localmente como fallback...');
+            await saveTaskLocally(task);
+            
+            // Mostrar erro mais específico
+            let errorMessage = 'Erro ao salvar no Supabase';
+            if (error.message.includes('column')) {
+              errorMessage += ': Problema com estrutura da tabela';
+            } else if (error.message.includes('permission')) {
+              errorMessage += ': Problema de permissão';
+            } else if (error.message.includes('connection')) {
+              errorMessage += ': Problema de conexão';
+            }
+            errorMessage += `. Tarefa foi salva localmente. Detalhes: ${error.message}`;
+            
+            throw new Error(errorMessage);
+          } else {
+            console.log('Tarefa salva no Supabase com sucesso:', data);
+          }
+          
+          // Salva anexos na tabela task_attachments
+          if (Array.isArray(attachments) && attachments.length > 0) {
+            for (const a of attachments) {
+              const { data: attachData, error: attachError } = await supabaseClient.from('task_attachments').upsert([
+                {
+                  id: a.id || (window.crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)),
+                  task_id: payload.id,
+                  file_name: a.name,
+                  file_url: a.dataURL,
+                  created_at: new Date().toISOString()
+                }
+              ]);
+              if (attachError) {
+                console.error('Erro ao salvar anexo no Supabase:', attachError, a);
+                // Não falha completamente se anexo der erro
+              } else {
+                console.log('Anexo salvo no Supabase:', attachData, a);
               }
-            ]);
-            if (attachError) {
-              console.error('Erro ao salvar anexo no Supabase:', attachError, a);
-            } else {
-              console.log('Anexo salvo no Supabase:', attachData, a);
             }
           }
+        } catch (error) {
+          console.error('Erro geral ao salvar tarefa:', error);
+          throw error;
+        }
+      }
+      
+      // Função para salvar tarefa localmente em caso de falha do Supabase
+      async function saveTaskLocally(task) {
+        try {
+          // Encontrar se a tarefa já existe
+          const index = tasks.findIndex(t => t.id === task.id);
+          if (index >= 0) {
+            // Atualizar tarefa existente
+            tasks[index] = task;
+          } else {
+            // Adicionar nova tarefa
+            tasks.push(task);
+          }
+          // Salvar no localStorage
+          save();
+          console.log('Tarefa salva localmente:', task);
+        } catch (error) {
+          console.error('Erro ao salvar localmente:', error);
         }
       }
 
       async function supabaseDeleteTask(id) {
-        const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
-        if (error) console.error('Erro ao excluir no Supabase:', error);
-        // Excluir anexos relacionados
-        await supabaseClient.from('task_attachments').delete().eq('task_id', id);
+        try {
+          console.log('Excluindo tarefa:', id);
+          const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
+          if (error) {
+            console.error('Erro ao excluir tarefa no Supabase:', error);
+          } else {
+            console.log('Tarefa excluída com sucesso do Supabase');
+          }
+          
+          // Excluir anexos relacionados
+          const { error: attachError } = await supabaseClient.from('task_attachments').delete().eq('task_id', id);
+          if (attachError) {
+            console.error('Erro ao excluir anexos no Supabase:', attachError);
+          }
+          
+          return { error };
+        } catch (error) {
+          console.error('Erro geral ao excluir tarefa:', error);
+          return { error };
+        }
       }
 
       async function supabaseBulkInsertTasks(taskList) {
@@ -1016,14 +1135,32 @@
     }
     // Carregar tarefas do Supabase ao iniciar
     async function loadTasksFromSupabase() {
-      const { data, error } = await supabaseClient.from('tasks').select('*');
-      if (error) {
-        console.error('Erro ao carregar tarefas do Supabase:', error);
+      try {
+        console.log('Carregando tarefas do Supabase...');
+        const { data, error } = await supabaseClient.from('tasks').select('*');
+        if (error) {
+          console.error('Erro ao carregar tarefas do Supabase:', error);
+          tasks = [];
+          throw new Error(`Erro ao carregar tarefas: ${error.message}`);
+        } else {
+          tasks = data || [];
+          console.log(`${tasks.length} tarefas carregadas do Supabase`);
+          // Migrar tarefas existentes sem sequential_id
+          await migrateExistingTasks();
+        }
+      } catch (error) {
+        console.error('Erro geral ao carregar tarefas:', error);
         tasks = [];
-      } else {
-        tasks = data || [];
-        // Migrar tarefas existentes sem sequential_id
-        await migrateExistingTasks();
+        // Tentar carregar do localStorage como fallback
+        const localTasks = localStorage.getItem(STORAGE_KEY);
+        if (localTasks) {
+          try {
+            tasks = JSON.parse(localTasks);
+            console.log('Tarefas carregadas do localStorage como fallback');
+          } catch (e) {
+            console.error('Erro ao carregar do localStorage:', e);
+          }
+        }
       }
     }
 
@@ -1394,7 +1531,14 @@
     const form = document.getElementById('taskForm');
     const detailModal = document.getElementById('detailModal');
 
+    // Verificar se elementos essenciais existem
+    if (!modal || !form) {
+      console.error('Elementos essenciais não encontrados:', { modal, form });
+      alert('Erro: Elementos da interface não foram carregados corretamente. Recarregue a página.');
+    }
+
     document.getElementById('btnNew').addEventListener('click', ()=>{
+      console.log('Abrindo modal para nova tarefa...');
       editingId = null; anexosTemp = []; renderThumbs();
       form.reset();
       document.getElementById('modalTitle').textContent = 'Nova Atividade';
@@ -1438,16 +1582,41 @@
     // ====== Salvar / Editar ======
     form.addEventListener('submit', async (e)=>{
       e.preventDefault();
-      const fd = new FormData(form);
-      const data = Object.fromEntries(fd.entries());
-      const tags = (data.tags||'').split(',').map(x=>x.trim()).filter(Boolean);
-      if (editingId) {
+      
+      try {
+        // Validação básica
+        const title = form.querySelector('#inputTitle').value.trim();
+        if (!title) {
+          alert('O título é obrigatório!');
+          form.querySelector('#inputTitle').focus();
+          return;
+        }
+        
+        // Mostrar loading
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.textContent;
+        submitButton.textContent = 'Salvando...';
+        submitButton.disabled = true;
+        
+        const fd = new FormData(form);
+        const data = Object.fromEntries(fd.entries());
+        const tags = (data.tags||'').split(',').map(x=>x.trim()).filter(Boolean);
+        
+        if (editingId) {
           const idx = tasks.findIndex(t=>t.id===editingId);
+          if (idx === -1) {
+            throw new Error('Tarefa para edição não encontrada');
+          }
           let editTask = { ...tasks[idx], ...data, tags, attachments: [...anexosTemp] };
           // Corrige nome do campo de data para Supabase
           if (editTask.due) {
             editTask.due_date = editTask.due;
             delete editTask.due;
+          }
+          // Corrige nome do campo createdAt para created_at
+          if (editTask.createdAt && !editTask.created_at) {
+            editTask.created_at = editTask.createdAt;
+            delete editTask.createdAt;
           }
           // Remove anexos antigos do Supabase antes de salvar novos
           await supabaseClient.from('task_attachments').delete().eq('task_id', editTask.id);
@@ -1465,39 +1634,109 @@
             description: data.description||'', 
             tags, 
             attachments: [...anexosTemp], 
-            createdAt: new Date().toISOString() 
+            created_at: new Date().toISOString() 
           };
           await supabaseInsertTask(nova);
         }
-  modal.close();
-  await loadTasksFromSupabase();
-  await refreshAll();
+        
+        modal.close();
+        await loadTasksFromSupabase();
+        await refreshAll();
+        
+        // Reset form
+        form.reset();
+        anexosTemp = [];
+        renderThumbs();
+        editingId = null;
+        
+        // Restaurar botão
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+        
+        console.log('Tarefa salva com sucesso!');
+        
+      } catch (error) {
+        console.error('Erro ao salvar tarefa:', error);
+        alert(`Erro ao salvar a tarefa: ${error.message || error}`);
+        
+        // Restaurar botão em caso de erro
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.textContent = 'Salvar';
+        submitButton.disabled = false;
+      }
     });
 
     // ====== Ações da Lista/Kanban ======
-    document.getElementById('taskTable').addEventListener('click', onActionClick);
-    document.getElementById('viewKanban').addEventListener('click', onActionClick);
+    const taskTable = document.getElementById('taskTable');
+    const viewKanban = document.getElementById('viewKanban');
+    
+    if (taskTable) {
+      taskTable.addEventListener('click', onActionClick);
+    } else {
+      console.error('Elemento taskTable não encontrado');
+    }
+    
+    if (viewKanban) {
+      viewKanban.addEventListener('click', onActionClick);
+    } else {
+      console.error('Elemento viewKanban não encontrado');
+    }
 
     async function onActionClick(e) {
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      const act = btn.getAttribute('data-act');
-      const id = btn.getAttribute('data-id');
-      const t = tasks.find(x=>x.id===id);
-      if (!t) return;
+      try {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        
+        const act = btn.getAttribute('data-act');
+        const id = btn.getAttribute('data-id');
+        
+        if (!act || !id) {
+          console.warn('Ação ou ID não encontrado no botão:', { act, id });
+          return;
+        }
+        
+        const t = tasks.find(x=>x.id===id);
+        if (!t) {
+          console.warn('Tarefa não encontrada:', id);
+          return;
+        }
         if (act==='del') {
             if (confirm('Excluir esta atividade?')) {
-              const { error } = await supabaseDeleteTask(id);
-              if (error) {
-                alert('Erro ao excluir no Supabase!');
-                console.error('Erro ao excluir no Supabase:', error);
-                return;
+              try {
+                console.log('Iniciando exclusão da tarefa:', id);
+                const result = await supabaseDeleteTask(id);
+                
+                if (result && result.error) {
+                  console.warn('Erro no Supabase, removendo tarefa localmente como fallback');
+                  // Remover localmente como fallback
+                  const taskIndex = tasks.findIndex(task => task.id === id);
+                  if (taskIndex > -1) {
+                    tasks.splice(taskIndex, 1);
+                    save();
+                    await refreshAll();
+                    alert('Tarefa removida localmente. Pode haver inconsistência com o servidor.');
+                  } else {
+                    alert('Erro ao excluir no Supabase e tarefa não encontrada localmente!');
+                  }
+                  return;
+                }
+                
+                console.log('Tarefa excluída com sucesso, atualizando interface...');
+                await loadTasksFromSupabase();
+                await refreshAll();
+                console.log('Interface atualizada após exclusão');
+                
+              } catch (error) {
+                console.error('Erro inesperado ao excluir tarefa:', error);
+                alert('Erro inesperado ao excluir a atividade. Tente novamente.');
               }
-              await refreshAll();
             }
         }
-  if (act==='edit') { openEdit(t); }
-  if (act==='view') { openDetail(t); }
+        if (act==='edit') { openEdit(t); }
+        if (act==='view') { openDetail(t); }
+      } catch (error) {
+        console.error('Erro geral no onActionClick:', error);
+      }
     }
 
     function openEdit(t) {
@@ -1692,32 +1931,50 @@
     // Inicializar
     // Inicializar
     async function startApp() {
+      console.log('Iniciando aplicação...');
       document.getElementById('loadingList').classList.remove('hidden');
       document.getElementById('errorList').classList.add('hidden');
       document.getElementById('emptyList').classList.add('hidden');
       try {
+        // Verificar se Supabase está disponível
+        if (typeof supabase === 'undefined') {
+          throw new Error('Supabase não está disponível');
+        }
+        
         // Carregar status personalizados primeiro
+        console.log('Carregando status personalizados...');
         loadCustomStatus();
         await loadStatusFromSupabase();
         
         // Carregar tarefas
+        console.log('Carregando tarefas...');
         await loadTasksFromSupabase();
         
         // Atualizar selects com status personalizados
+        console.log('Atualizando selects...');
         updateStatusSelects();
         
+        console.log('Atualizando interface...');
         await refreshAll();
         document.getElementById('loadingList').classList.add('hidden');
         if (!tasks || tasks.length === 0) {
           document.getElementById('emptyList').classList.remove('hidden');
         }
+        console.log('Aplicação iniciada com sucesso!');
       } catch (e) {
         document.getElementById('loadingList').classList.add('hidden');
         document.getElementById('errorList').classList.remove('hidden');
         console.error('Erro na inicialização:', e);
+        alert(`Erro ao inicializar aplicação: ${e.message}`);
       }
     }
-    startApp();
+    
+    // Inicializar quando o DOM estiver carregado
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startApp);
+    } else {
+      startApp();
+    }
     // Exportar PDF do Dashboard (restaurado e robusto)
     function setupPDFExportButton() {
       const btnExportPDF = document.getElementById('btnExportPDF');
