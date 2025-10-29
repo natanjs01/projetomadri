@@ -377,6 +377,33 @@
     </div>
   </dialog>
 
+  <!-- Modal: Visualizar Imagem -->
+  <dialog id="imageModal" class="rounded-2xl w-11/12 max-w-4xl p-0 shadow-2xl bg-black bg-opacity-90">
+    <div class="relative">
+      <button type="button" id="btnCloseImage" class="absolute top-4 right-4 z-10 p-2 rounded-full bg-black bg-opacity-50 text-white hover:bg-opacity-70 transition">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+      <div class="p-4">
+        <div class="text-center mb-4">
+          <h3 id="imageModalTitle" class="text-lg font-medium text-white"></h3>
+        </div>
+        <div class="flex justify-center">
+          <img id="imageModalImg" src="" alt="" class="max-w-full max-h-[80vh] object-contain rounded-lg" />
+        </div>
+        <div class="mt-4 text-center">
+          <button type="button" id="btnDownloadImage" class="px-4 py-2 rounded-xl bg-white text-black hover:bg-gray-100 transition mr-2">
+            Baixar Imagem
+          </button>
+          <button type="button" id="btnOpenImageNewTab" class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition">
+            Abrir em Nova Aba
+          </button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Modal: Gerenciar Status -->
   <dialog id="statusModal" class="rounded-2xl w-11/12 max-w-2xl p-0 shadow-2xl">
     <div class="bg-white rounded-2xl">
@@ -1636,10 +1663,14 @@ CREATE TABLE task_attachments (
   wrap.innerHTML = '';
   anexosTemp.forEach((a,idx)=>{
     const d = document.createElement('div');
-    d.className = 'relative';
+    d.className = 'relative group';
     d.innerHTML = `
-      <img src='${a.dataURL}' class='h-20 w-20 object-cover rounded-xl border'/>
-      <button type='button' class='absolute -top-2 -right-2 bg-rose-600 text-white rounded-full h-6 w-6 text-xs' data-rm='${idx}'>×</button>`;
+      <img src='${a.dataURL}' class='h-20 w-20 object-cover rounded-xl border cursor-pointer hover:shadow-lg transition' 
+           onclick='openImageModal("${a.dataURL}", "${a.name}")' title='Clique para visualizar ${a.name}'/>
+      <button type='button' class='absolute -top-2 -right-2 bg-rose-600 text-white rounded-full h-6 w-6 text-xs hover:bg-rose-700 transition' data-rm='${idx}' title='Remover imagem'>×</button>
+      <div class='absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-xl transition-all flex items-center justify-center pointer-events-none'>
+        <span class='text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity'>👁️</span>
+      </div>`;
     wrap.appendChild(d);
   });
 }
@@ -1946,6 +1977,9 @@ CREATE TABLE task_attachments (
     }
 
     function openDetail(t) {
+      // Armazenar referência da tarefa atual para uso nos event listeners
+      window.currentDetailTask = t;
+      
       const body = document.getElementById('detailBody');
       body.innerHTML = `
         <div class='flex items-center gap-2 mb-3'>
@@ -1963,17 +1997,26 @@ CREATE TABLE task_attachments (
         <div><span class='text-slate-500'>Tags:</span> ${(t.tags||[]).map(x=>`<span class='text-xs bg-slate-100 rounded px-2 py-0.5 mr-1'>${x}</span>`).join('') || '-'}</div>
         <div>
           <span class='text-slate-500'>Anexos:</span>
-          <div class='mt-2 flex flex-wrap gap-2'>
-            ${(t.attachments||[]).map(a=>{
+          <div class='mt-2 flex flex-wrap gap-2' id='detailAttachments'>
+            ${(t.attachments||[]).map((a, idx)=>{
               // Verificar se é uma URL válida ou data URL
               const isDataUrl = a.dataURL && a.dataURL.startsWith('data:');
               const imgSrc = isDataUrl ? a.dataURL : '#';
               const imgAlt = `Anexo: ${a.name || 'imagem'}`;
               
               if (isDataUrl) {
-                return `<a href='${a.dataURL}' target='_blank' class='block' title='${a.name}'>
-                  <img src='${a.dataURL}' class='h-24 w-24 object-cover rounded-xl border hover:shadow-lg transition' alt='${imgAlt}' loading='lazy'/>
-                </a>`;
+                return `<div class='relative group'>
+                  <img src='${a.dataURL}' 
+                       class='h-24 w-24 object-cover rounded-xl border hover:shadow-lg transition cursor-pointer attachment-img' 
+                       alt='${imgAlt}' 
+                       loading='lazy' 
+                       data-filename='${a.name}' 
+                       data-index='${idx}'
+                       title='Clique para visualizar ${a.name}'/>
+                  <div class='absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-xl transition-all flex items-center justify-center pointer-events-none'>
+                    <span class='text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity'>👁️</span>
+                  </div>
+                </div>`;
               } else {
                 return `<div class='h-24 w-24 bg-slate-100 rounded-xl border flex items-center justify-center text-xs text-slate-500 text-center' title='${a.name}'>
                   <span>📎<br/>${a.name}</span>
@@ -1983,10 +2026,143 @@ CREATE TABLE task_attachments (
           </div>
         </div>`;
       detailModal.showModal();
+      
+      // Adicionar event listeners para as imagens de anexo no modal de detalhes
+      const attachmentImgs = detailModal.querySelectorAll('.attachment-img');
+      attachmentImgs.forEach(img => {
+        img.addEventListener('click', function() {
+          const index = parseInt(this.getAttribute('data-index'));
+          const task = window.currentDetailTask;
+          
+          if (task && task.attachments && task.attachments[index]) {
+            const attachment = task.attachments[index];
+            openImageModal(attachment.dataURL, attachment.name);
+          } else {
+            // Fallback: usar dados do próprio elemento
+            const dataURL = this.src;
+            const fileName = this.getAttribute('data-filename') || 'Imagem';
+            openImageModal(dataURL, fileName);
+          }
+        });
+      });
     }
 
-    document.getElementById('btnCloseDetail').addEventListener('click', ()=> detailModal.close());
-    document.getElementById('btnCloseDetail2').addEventListener('click', ()=> detailModal.close());
+    document.getElementById('btnCloseDetail').addEventListener('click', ()=> {
+      detailModal.close();
+      window.currentDetailTask = null;
+    });
+    document.getElementById('btnCloseDetail2').addEventListener('click', ()=> {
+      detailModal.close();
+      window.currentDetailTask = null;
+    });
+
+    // ====== Modal de Visualização de Imagem ======
+    const imageModal = document.getElementById('imageModal');
+    let currentImageData = null;
+
+    function openImageModal(dataURL, fileName) {
+      const img = document.getElementById('imageModalImg');
+      const title = document.getElementById('imageModalTitle');
+      
+      img.src = dataURL;
+      img.alt = fileName || 'Imagem';
+      title.textContent = fileName || 'Visualizar Imagem';
+      currentImageData = { dataURL, fileName };
+      
+      imageModal.showModal();
+    }
+
+    document.getElementById('btnCloseImage').addEventListener('click', ()=> {
+      imageModal.close();
+      currentImageData = null;
+    });
+
+    document.getElementById('btnDownloadImage').addEventListener('click', ()=> {
+      if (currentImageData) {
+        const link = document.createElement('a');
+        link.href = currentImageData.dataURL;
+        link.download = currentImageData.fileName || 'imagem.jpg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    });
+
+    document.getElementById('btnOpenImageNewTab').addEventListener('click', ()=> {
+      if (currentImageData) {
+        try {
+          // Verificar se é uma data URL válida
+          if (!currentImageData.dataURL.startsWith('data:image/')) {
+            alert('Formato de imagem inválido.');
+            return;
+          }
+          
+          // Extrair dados da imagem
+          const parts = currentImageData.dataURL.split(',');
+          if (parts.length !== 2) {
+            alert('Dados da imagem corrompidos.');
+            return;
+          }
+          
+          const header = parts[0]; // data:image/jpeg;base64
+          const data = parts[1];   // dados base64
+          
+          // Extrair tipo MIME
+          const mimeMatch = header.match(/data:([^;]+)/);
+          const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+          
+          // Converter base64 para Blob
+          const byteCharacters = atob(data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: mimeType });
+          const blobUrl = URL.createObjectURL(blob);
+          
+          // Tentar abrir em nova aba
+          const newWindow = window.open('', '_blank');
+          if (newWindow) {
+            newWindow.document.write(`
+              <!DOCTYPE html>
+              <html>
+                <head>
+                  <title>${currentImageData.fileName || 'Imagem'}</title>
+                  <style>
+                    body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+                    img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+                  </style>
+                </head>
+                <body>
+                  <img src="${blobUrl}" alt="${currentImageData.fileName || 'Imagem'}" />
+                </body>
+              </html>
+            `);
+            newWindow.document.close();
+            
+            // Limpar a URL após 30 segundos
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+          } else {
+            alert('Popup bloqueado. Permita popups para este site ou use o botão "Baixar Imagem".');
+          }
+        } catch (error) {
+          console.error('Erro ao abrir imagem em nova aba:', error);
+          alert('Erro ao processar imagem. Use o botão "Baixar Imagem" como alternativa.');
+        }
+      }
+    });
+
+    // Fechar modal ao clicar fora da imagem
+    imageModal.addEventListener('click', (e) => {
+      if (e.target === imageModal) {
+        imageModal.close();
+        currentImageData = null;
+      }
+    });
+
+    // Tornar função global para uso no HTML
+    window.openImageModal = openImageModal;
 
     // ====== Filtros & Tabs ======
     ['search','filterStatus','filterPriority','filterAssignee'].forEach(id=> document.getElementById(id).addEventListener('input', refreshViews));
