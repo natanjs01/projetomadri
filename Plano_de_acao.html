@@ -485,6 +485,32 @@
           }
         });
 
+      // Verificar se a tabela task_attachments existe
+      async function checkTaskAttachmentsTable() {
+        try {
+          const { error } = await supabaseClient.from('task_attachments').select('id').limit(1);
+          if (error) {
+            console.warn('Tabela task_attachments não existe ou não tem permissão. Para salvar anexos, crie a tabela com o SQL:', `
+CREATE TABLE task_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+  file_name VARCHAR(255) NOT NULL,
+  file_url TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);`);
+            return false;
+          }
+          console.log('Tabela task_attachments OK');
+          return true;
+        } catch (error) {
+          console.error('Erro ao verificar tabela task_attachments:', error);
+          return false;
+        }
+      }
+
+      // Verificar tabela na inicialização
+      checkTaskAttachmentsTable();
+
       // Buscar tasks do Supabase e exibir no console
       async function fetchTasksSupabase() {
         try {
@@ -578,21 +604,40 @@
           
           // Salva anexos na tabela task_attachments
           if (Array.isArray(attachments) && attachments.length > 0) {
+            console.log(`Salvando ${attachments.length} anexos para tarefa ${payload.id}...`);
             for (const a of attachments) {
-              const { data: attachData, error: attachError } = await supabaseClient.from('task_attachments').upsert([
-                {
-                  id: a.id || (window.crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)),
+              try {
+                // Gerar ID único se não existir
+                const attachmentId = a.id || uuidv4();
+                
+                const attachmentData = {
+                  id: attachmentId,
                   task_id: payload.id,
-                  file_name: a.name,
+                  file_name: a.name || 'anexo.jpg',
                   file_url: a.dataURL,
                   created_at: new Date().toISOString()
+                };
+                
+                console.log('Salvando anexo:', { id: attachmentId, task_id: payload.id, file_name: a.name });
+                
+                const { data: attachData, error: attachError } = await supabaseClient
+                  .from('task_attachments')
+                  .upsert([attachmentData], { onConflict: ['id'] });
+                  
+                if (attachError) {
+                  console.warn('Aviso ao salvar anexo no Supabase:', attachError.message);
+                  console.warn('Dados do anexo:', { id: attachmentId, task_id: payload.id, file_name: a.name });
+                  // Não falha completamente se anexo der erro, mas avisa o usuário
+                  if (attachError.message.includes('table') || attachError.message.includes('relation')) {
+                    console.warn('Tabela task_attachments pode não estar acessível. Anexos não serão salvos.');
+                  } else if (attachError.message.includes('CORS') || attachError.message.includes('policy')) {
+                    console.warn('Problema de CORS ao salvar anexo. Verifique as configurações do Supabase.');
+                  }
+                } else {
+                  console.log('Anexo salvo com sucesso:', attachmentId);
                 }
-              ]);
-              if (attachError) {
-                console.error('Erro ao salvar anexo no Supabase:', attachError, a);
-                // Não falha completamente se anexo der erro
-              } else {
-                console.log('Anexo salvo no Supabase:', attachData, a);
+              } catch (attachError) {
+                console.error('Erro geral ao processar anexo:', attachError, a);
               }
             }
           }
@@ -1145,6 +1190,45 @@
         } else {
           tasks = data || [];
           console.log(`${tasks.length} tarefas carregadas do Supabase`);
+          
+          // Carregar anexos para cada tarefa
+          for (let task of tasks) {
+            try {
+              const { data: attachments, error: attachError } = await supabaseClient
+                .from('task_attachments')
+                .select('id, file_name, file_url')
+                .eq('task_id', task.id);
+              
+              if (attachError) {
+                console.warn(`Aviso ao carregar anexos da tarefa ${task.sequential_id || task.id}:`, attachError);
+                task.attachments = [];
+              } else {
+                // Converter formato do Supabase para formato local
+                task.attachments = (attachments || []).map(attach => {
+                  // Verificar se file_url é válida
+                  const isValidUrl = attach.file_url && (
+                    attach.file_url.startsWith('data:') || 
+                    attach.file_url.startsWith('http://') || 
+                    attach.file_url.startsWith('https://')
+                  );
+                  
+                  return {
+                    id: attach.id,
+                    name: attach.file_name || 'anexo',
+                    dataURL: isValidUrl ? attach.file_url : null
+                  };
+                }).filter(attach => attach.dataURL); // Filtrar apenas anexos válidos
+                
+                if (task.attachments.length > 0) {
+                  console.log(`${task.attachments.length} anexos válidos carregados para tarefa ${task.sequential_id || task.id}`);
+                }
+              }
+            } catch (attachError) {
+              console.warn(`Erro geral ao carregar anexos da tarefa ${task.sequential_id || task.id}:`, attachError.message);
+              task.attachments = [];
+            }
+          }
+          
           // Migrar tarefas existentes sem sequential_id
           await migrateExistingTasks();
         }
@@ -1560,12 +1644,54 @@
   });
 }
 
+    // Event listeners para anexos
     const dropArea = document.getElementById('dropArea');
+    const imageInput = document.getElementById('imageInput');
+    
+    // Drag and drop
     ;['dragenter','dragover'].forEach(evt=> dropArea.addEventListener(evt, (e)=>{ e.preventDefault(); dropArea.classList.add('dragover'); }));
     ;['dragleave','drop'].forEach(evt=> dropArea.addEventListener(evt, (e)=>{ e.preventDefault(); dropArea.classList.remove('dragover'); }));
     dropArea.addEventListener('drop', async (e)=>{
+      console.log('Drop event triggered');
+      
+      // Verificar se o drop foi sobre o label do input (evitar duplicação)
+      if (e.target.closest('label') && e.target.closest('label').querySelector('#imageInput')) {
+        console.log('Drop ignorado - foi sobre o label do input');
+        return;
+      }
+      
       const files = [...e.dataTransfer.files].filter(f=> f.type.startsWith('image/'));
-      for (const f of files) { anexosTemp.push({ name: f.name, dataURL: await fileToDataURL(f) }); }
+      console.log(`Processando ${files.length} arquivos de imagem`);
+      
+      for (const f of files) {
+        // Verificar tamanho do arquivo (limitar a 5MB)
+        if (f.size > 5 * 1024 * 1024) {
+          alert(`Arquivo ${f.name} é muito grande (${(f.size / 1024 / 1024).toFixed(1)}MB). Limite: 5MB`);
+          continue;
+        }
+        
+        try {
+          console.log(`Processando arquivo: ${f.name}`);
+          const dataURL = await fileToDataURL(f);
+          // Verificar se o dataURL não é muito grande (aproximadamente)
+          if (dataURL.length > 6 * 1024 * 1024) { // ~4.5MB após base64
+            alert(`Imagem ${f.name} é muito grande após conversão. Tente reduzir a qualidade ou tamanho.`);
+            continue;
+          }
+          
+          const newAttachment = { 
+            id: uuidv4(), 
+            name: f.name, 
+            dataURL: dataURL
+          };
+          console.log(`Adicionando anexo:`, newAttachment.id, newAttachment.name);
+          anexosTemp.push(newAttachment);
+        } catch (error) {
+          console.error('Erro ao processar arquivo:', f.name, error);
+          alert(`Erro ao processar arquivo ${f.name}`);
+        }
+      }
+      console.log(`Total de anexos agora: ${anexosTemp.length}`);
       renderThumbs();
     });
 
@@ -1573,11 +1699,66 @@
       return new Promise((res, rej)=>{
         const fr = new FileReader();
         fr.onload = ()=> res(fr.result);
-        fr.onerror = rej; fr.readAsDataURL(file);
+        fr.onerror = (error) => {
+          console.error('Erro ao ler arquivo:', error);
+          rej(error);
+        };
+        fr.readAsDataURL(file);
       });
     }
 
     document.getElementById('btnClearAnexos').addEventListener('click', ()=>{ anexosTemp = []; renderThumbs(); });
+
+    // Event listener para remover anexos individuais
+    document.getElementById('thumbs').addEventListener('click', (e) => {
+      const rmBtn = e.target.closest('button[data-rm]');
+      if (rmBtn) {
+        const idx = parseInt(rmBtn.getAttribute('data-rm'));
+        if (!isNaN(idx) && idx >= 0 && idx < anexosTemp.length) {
+          anexosTemp.splice(idx, 1);
+          renderThumbs();
+        }
+      }
+    });
+
+    // Event listener para input file (seleção manual de arquivos)
+    document.getElementById('imageInput').addEventListener('change', async (e) => {
+      console.log('Input file change event triggered');
+      const files = [...e.target.files].filter(f => f.type.startsWith('image/'));
+      console.log(`Processando ${files.length} arquivos de imagem via input`);
+      
+      for (const f of files) {
+        // Verificar tamanho do arquivo (limitar a 5MB)
+        if (f.size > 5 * 1024 * 1024) {
+          alert(`Arquivo ${f.name} é muito grande (${(f.size / 1024 / 1024).toFixed(1)}MB). Limite: 5MB`);
+          continue;
+        }
+        
+        try {
+          console.log(`Processando arquivo via input: ${f.name}`);
+          const dataURL = await fileToDataURL(f);
+          // Verificar se o dataURL não é muito grande
+          if (dataURL.length > 6 * 1024 * 1024) {
+            alert(`Imagem ${f.name} é muito grande após conversão. Tente reduzir a qualidade ou tamanho.`);
+            continue;
+          }
+          
+          const newAttachment = {
+            id: uuidv4(),
+            name: f.name,
+            dataURL: dataURL
+          };
+          console.log(`Adicionando anexo via input:`, newAttachment.id, newAttachment.name);
+          anexosTemp.push(newAttachment);
+        } catch (error) {
+          console.error('Erro ao processar arquivo:', f.name, error);
+          alert(`Erro ao processar arquivo ${f.name}`);
+        }
+      }
+      console.log(`Total de anexos agora: ${anexosTemp.length}`);
+      renderThumbs();
+      e.target.value = ''; // Limpar input para permitir selecionar o mesmo arquivo novamente
+    });
 
     // ====== Salvar / Editar ======
     form.addEventListener('submit', async (e)=>{
@@ -1653,7 +1834,17 @@
         submitButton.textContent = originalText;
         submitButton.disabled = false;
         
-        console.log('Tarefa salva com sucesso!');
+        // Mostrar mensagem de sucesso
+        const attachmentCount = anexosTemp.length;
+        
+        const successMessage = editingId ? 
+          `Tarefa atualizada com sucesso!${attachmentCount > 0 ? ` ${attachmentCount} anexo(s) salvos.` : ''}` :
+          `Tarefa criada com sucesso!${attachmentCount > 0 ? ` ${attachmentCount} anexo(s) salvos.` : ''}`;
+        
+        console.log(successMessage);
+        
+        // Opcionalmente mostrar alerta para o usuário
+        // alert(successMessage);
         
       } catch (error) {
         console.error('Erro ao salvar tarefa:', error);
@@ -1773,7 +1964,22 @@
         <div>
           <span class='text-slate-500'>Anexos:</span>
           <div class='mt-2 flex flex-wrap gap-2'>
-            ${(t.attachments||[]).map(a=>`<a href='${a.dataURL}' target='_blank' class='block'><img src='${a.dataURL}' class='h-24 w-24 object-cover rounded-xl border' alt='Anexo da tarefa ${t.title}' loading='lazy'/></a>`).join('') || '<span>-</span>'}
+            ${(t.attachments||[]).map(a=>{
+              // Verificar se é uma URL válida ou data URL
+              const isDataUrl = a.dataURL && a.dataURL.startsWith('data:');
+              const imgSrc = isDataUrl ? a.dataURL : '#';
+              const imgAlt = `Anexo: ${a.name || 'imagem'}`;
+              
+              if (isDataUrl) {
+                return `<a href='${a.dataURL}' target='_blank' class='block' title='${a.name}'>
+                  <img src='${a.dataURL}' class='h-24 w-24 object-cover rounded-xl border hover:shadow-lg transition' alt='${imgAlt}' loading='lazy'/>
+                </a>`;
+              } else {
+                return `<div class='h-24 w-24 bg-slate-100 rounded-xl border flex items-center justify-center text-xs text-slate-500 text-center' title='${a.name}'>
+                  <span>📎<br/>${a.name}</span>
+                </div>`;
+              }
+            }).join('') || '<span class="text-slate-400">Nenhum anexo</span>'}
           </div>
         </div>`;
       detailModal.showModal();
