@@ -1550,14 +1550,27 @@ CREATE TABLE task_attachments (
 
     function renderList() {
       let list = applyFilters(tasks);
-      // Ordena pelo prazo mais próximo do vencimento (ascendente), tarefas sem prazo vão para o final
+      
+      // Ordenação hierárquica: Prioridade de Status + Urgência por Prazo
       list = list.slice().sort((a, b) => {
+        // NÍVEL 1: Prioridade por Status
+        const priorityStatuses = ['Backlog', 'Em andamento'];
+        const aPriority = priorityStatuses.includes(a.status);
+        const bPriority = priorityStatuses.includes(b.status);
+        
+        // Se um tem prioridade de status e outro não
+        if (aPriority && !bPriority) return -1; // a vem primeiro
+        if (!aPriority && bPriority) return 1;  // b vem primeiro
+        
+        // NÍVEL 2: Se ambos têm a mesma prioridade de status, ordena por prazo
+        // Dentro do mesmo grupo de prioridade, mantém ordenação por urgência
         const pa = a.due_date || a.due;
         const pb = b.due_date || b.due;
+        
         if (!pa && !pb) return 0;
-        if (!pa) return 1;
-        if (!pb) return -1;
-        return new Date(pa) - new Date(pb);
+        if (!pa) return 1;  // tarefas sem prazo vão para o final do grupo
+        if (!pb) return -1; // tarefas sem prazo vão para o final do grupo
+        return new Date(pa) - new Date(pb); // mais próximo primeiro
       });
       const tbody = document.getElementById('taskTable');
       tbody.innerHTML = '';
