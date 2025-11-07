@@ -1211,69 +1211,91 @@ CREATE TABLE task_attachments (
       }, 0);
       return `ID${String(maxId + 1).padStart(3, '0')}`;
     }
-    // Carregar tarefas do Supabase ao iniciar
+    // Carregar tarefas do Supabase ao iniciar (OTIMIZADO - Query em Lote)
     async function loadTasksFromSupabase() {
       try {
-        console.log('Carregando tarefas do Supabase...');
+        console.log('🚀 Carregando tarefas do Supabase (modo otimizado)...');
+        const startTime = Date.now();
+        
+        // QUERY 1: Carregar todas as tarefas
         const { data, error } = await supabaseClient.from('tasks').select('*');
         if (error) {
           console.error('Erro ao carregar tarefas do Supabase:', error);
           tasks = [];
           throw new Error(`Erro ao carregar tarefas: ${error.message}`);
-        } else {
-          tasks = data || [];
-          console.log(`${tasks.length} tarefas carregadas do Supabase`);
-          
-          // Carregar anexos para cada tarefa
-          for (let task of tasks) {
-            try {
-              const { data: attachments, error: attachError } = await supabaseClient
-                .from('task_attachments')
-                .select('id, file_name, file_url')
-                .eq('task_id', task.id);
-              
-              if (attachError) {
-                console.warn(`Aviso ao carregar anexos da tarefa ${task.sequential_id || task.id}:`, attachError);
-                task.attachments = [];
-              } else {
-                // Converter formato do Supabase para formato local
-                task.attachments = (attachments || []).map(attach => {
-                  // Verificar se file_url é válida
-                  const isValidUrl = attach.file_url && (
-                    attach.file_url.startsWith('data:') || 
-                    attach.file_url.startsWith('http://') || 
-                    attach.file_url.startsWith('https://')
-                  );
-                  
-                  return {
-                    id: attach.id,
-                    name: attach.file_name || 'anexo',
-                    dataURL: isValidUrl ? attach.file_url : null
-                  };
-                }).filter(attach => attach.dataURL); // Filtrar apenas anexos válidos
-                
-                if (task.attachments.length > 0) {
-                  console.log(`${task.attachments.length} anexos válidos carregados para tarefa ${task.sequential_id || task.id}`);
-                }
-              }
-            } catch (attachError) {
-              console.warn(`Erro geral ao carregar anexos da tarefa ${task.sequential_id || task.id}:`, attachError.message);
-              task.attachments = [];
-            }
-          }
-          
-          // Migrar tarefas existentes sem sequential_id
-          await migrateExistingTasks();
         }
+        
+        tasks = data || [];
+        console.log(`✅ ${tasks.length} tarefas carregadas do Supabase`);
+        
+        // QUERY 2: Carregar TODOS os anexos de uma vez (em lote)
+        if (tasks.length > 0) {
+          const taskIds = tasks.map(task => task.id);
+          console.log(`🔄 Carregando anexos para ${taskIds.length} tarefas em lote...`);
+          
+          const { data: allAttachments, error: attachError } = await supabaseClient
+            .from('task_attachments')
+            .select('id, file_name, file_url, task_id')
+            .in('task_id', taskIds);
+          
+          if (attachError) {
+            console.warn('Aviso ao carregar anexos em lote:', attachError);
+            // Inicializar anexos vazios para todas as tarefas
+            tasks.forEach(task => { task.attachments = []; });
+          } else {
+            // Organizar anexos por task_id para associação rápida
+            const attachmentsByTaskId = {};
+            
+            (allAttachments || []).forEach(attach => {
+              // Verificar se file_url é válida
+              const isValidUrl = attach.file_url && (
+                attach.file_url.startsWith('data:') || 
+                attach.file_url.startsWith('http://') || 
+                attach.file_url.startsWith('https://')
+              );
+              
+              if (isValidUrl) {
+                if (!attachmentsByTaskId[attach.task_id]) {
+                  attachmentsByTaskId[attach.task_id] = [];
+                }
+                
+                attachmentsByTaskId[attach.task_id].push({
+                  id: attach.id,
+                  name: attach.file_name || 'anexo',
+                  dataURL: attach.file_url
+                });
+              }
+            });
+            
+            // Associar anexos às tarefas correspondentes
+            let totalAttachments = 0;
+            tasks.forEach(task => {
+              task.attachments = attachmentsByTaskId[task.id] || [];
+              totalAttachments += task.attachments.length;
+            });
+            
+            console.log(`✅ ${totalAttachments} anexos válidos carregados e associados às tarefas`);
+          }
+        } else {
+          console.log('📭 Nenhuma tarefa encontrada, pulando carregamento de anexos');
+        }
+        
+        // Migrar tarefas existentes sem sequential_id
+        await migrateExistingTasks();
+        
+        const endTime = Date.now();
+        const loadTime = ((endTime - startTime) / 1000).toFixed(2);
+        console.log(`⚡ Carregamento concluído em ${loadTime}s (modo otimizado)`);
+        
       } catch (error) {
-        console.error('Erro geral ao carregar tarefas:', error);
+        console.error('❌ Erro geral ao carregar tarefas:', error);
         tasks = [];
         // Tentar carregar do localStorage como fallback
         const localTasks = localStorage.getItem(STORAGE_KEY);
         if (localTasks) {
           try {
             tasks = JSON.parse(localTasks);
-            console.log('Tarefas carregadas do localStorage como fallback');
+            console.log('🔄 Tarefas carregadas do localStorage como fallback');
           } catch (e) {
             console.error('Erro ao carregar do localStorage:', e);
           }
