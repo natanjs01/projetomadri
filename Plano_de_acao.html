@@ -2547,7 +2547,6 @@
 
       // Event listeners para o novo modal de pendências
       document.getElementById('btnPendingApprovals')?.addEventListener('click', () => {
-        console.log('🔍 Abrindo modal de pendências...');
         const modal = document.getElementById('pendingApprovalsModal');
         if (modal) {
           modal.showModal();
@@ -2558,7 +2557,6 @@
       });
 
       document.getElementById('btnClosePendingModal')?.addEventListener('click', () => {
-        console.log('❌ Fechando modal de pendências (botão X)...');
         const modal = document.getElementById('pendingApprovalsModal');
         if (modal) {
           modal.close();
@@ -2566,7 +2564,6 @@
       });
 
       document.getElementById('btnClosePendingModal2')?.addEventListener('click', () => {
-        console.log('❌ Fechando modal de pendências (botão Fechar)...');
         const modal = document.getElementById('pendingApprovalsModal');
         if (modal) {
           modal.close();
@@ -2578,7 +2575,6 @@
         if (event.key === 'Escape') {
           const modal = document.getElementById('pendingApprovalsModal');
           if (modal && modal.open) {
-            console.log('❌ Fechando modal de pendências (Escape)...');
             modal.close();
           }
         }
@@ -2587,7 +2583,6 @@
       window.addEventListener('click', (event) => {
         const modal = document.getElementById('pendingApprovalsModal');
         if (event.target === modal) {
-          console.log('❌ Fechando modal de pendências (clique fora)...');
           modal.close();
         }
       });
@@ -3965,15 +3960,12 @@ CREATE TABLE task_attachments (
     // Função para controlar visibilidade do botão de pendências
     function updatePendingApprovalsButtonVisibility() {
       const btnPendingApprovals = document.getElementById('btnPendingApprovals');
-      console.log('👁️ updatePendingApprovalsButtonVisibility - isAdmin:', isAdmin, 'botão encontrado:', !!btnPendingApprovals);
       
       if (btnPendingApprovals) {
         if (isAdmin) {
           btnPendingApprovals.classList.remove('hidden');
-          console.log('👁️ Botão de pendências exibido para admin');
         } else {
           btnPendingApprovals.classList.add('hidden');
-          console.log('👁️ Botão de pendências oculto para não-admin');
         }
       }
     }
@@ -3983,24 +3975,14 @@ CREATE TABLE task_attachments (
     // Função para carregar solicitações pendentes
     async function loadPendingRequests() {
       try {
-        console.log('📋 =================================');
-        console.log('📋 DIAGNÓSTICO DE PENDÊNCIAS');
-        console.log('📋 =================================');
-        console.log('📋 isAdmin:', isAdmin);
-        console.log('📋 supabaseClient:', !!supabaseClient);
-        console.log('📋 currentUser:', currentUser);
-        
         if (!supabaseClient) {
           console.error('❌ Supabase client não disponível');
           return;
         }
         
         if (!isAdmin) {
-          console.log('⚠️ Usuário não é admin - ignorando carregamento');
           return;
         }
-        
-        console.log('📋 ✅ Iniciando busca por solicitações pendentes...');
         
         const { data, error } = await supabaseClient
           .from('tasks')
@@ -4015,29 +3997,15 @@ CREATE TABLE task_attachments (
           .eq('confirmation_status', 'pending')
           .order('confirmation_requested_at', { ascending: false });
         
-        console.log('📋 Resposta da query:', { data, error });
-        
-        // DEBUG: Vamos verificar TODAS as tarefas com campos de confirmação
-        const { data: allConfirmations, error: debugError } = await supabaseClient
-          .from('tasks')
-          .select('id, title, confirmation_status, confirmation_requested_at, confirmation_requested_by')
-          .not('confirmation_status', 'is', null);
-        
-        console.log('📋 DEBUG - TODAS as tarefas com confirmation_status:', allConfirmations);
-        
         if (error) {
           console.error('❌ Erro ao carregar solicitações pendentes:', error);
           return;
         }
         
-        console.log(`✅ ${data?.length || 0} solicitações pendentes carregadas:`, data);
-        
         if (data && data.length > 0) {
-          console.log('📋 Renderizando pendências...');
           renderPendingRequests(data);
           renderPendingListModal(data);
         } else {
-          console.log('📋 Nenhuma pendência encontrada - limpando interfaces');
           renderPendingRequests([]);
           renderPendingListModal([]);
         }
@@ -4054,20 +4022,11 @@ CREATE TABLE task_attachments (
     
     // Função para renderizar lista de solicitações pendentes
     function renderPendingRequests(requests) {
-      console.log('🎨 renderPendingRequests chamada com', requests.length, 'solicitações');
-      
       const container = document.getElementById('pendingRequestsContainer');
       const noRequests = document.getElementById('noPendingRequests');
       const countBadge = document.getElementById('pendingRequestsCount');
       
-      console.log('🎨 Elementos encontrados:', {
-        container: !!container,
-        noRequests: !!noRequests,
-        countBadge: !!countBadge
-      });
-      
       if (!container) {
-        console.error('❌ Container pendingRequestsContainer não encontrado!');
         return;
       }
       
@@ -4135,8 +4094,6 @@ CREATE TABLE task_attachments (
     
     // Função para renderizar pendências no modal dedicado
     function renderPendingListModal(requests) {
-      console.log('🎨 renderPendingListModal chamada com', requests.length, 'solicitações');
-      
       const container = document.getElementById('pendingListContainer');
       const noMessage = document.getElementById('noPendingMessage');
       const countBadge = document.getElementById('pendingModalCount');
@@ -4352,20 +4309,15 @@ CREATE TABLE task_attachments (
     
     // Função para atualizar badge de notificação
     function updateNotificationBadge(count) {
-      console.log('🔔 updateNotificationBadge chamada com count:', count);
-      
-      // Badge no novo botão de pendências (principal)
+      // Badge no novo botão de pendências
       const pendingBadge = document.getElementById('pendingBadge');
-      console.log('🔔 Badge pendências encontrado:', !!pendingBadge);
       
       if (pendingBadge) {
         if (count > 0) {
           pendingBadge.textContent = count;
           pendingBadge.classList.remove('hidden');
-          console.log('🔔 Badge pendências exibido com count:', count);
         } else {
           pendingBadge.classList.add('hidden');
-          console.log('🔔 Badge pendências ocultado');
         }
       }
     }
@@ -5531,8 +5483,6 @@ CREATE TABLE task_attachments (
     const renderTaskBoard = refreshViews;
     
     function refreshAll() {
-      console.log('🔄 refreshAll() chamada - Total de tarefas:', tasks.length);
-      console.log('🔄 isAdmin:', isAdmin, 'supabaseClient:', !!supabaseClient);
       kpi.render();
       refreshCharts();
       refreshViews();
@@ -5542,17 +5492,14 @@ CREATE TABLE task_attachments (
       
       // Carregar pendências se for admin
       if (isAdmin && supabaseClient) {
-        console.log('🔄 Carregando pendências de aprovação...');
         loadPendingRequests();
       }
       
       // Força exibir todas as tarefas se tasks estiver vazio
       if (!tasks || tasks.length === 0) {
         document.getElementById('emptyList').classList.remove('hidden');
-        console.log('📭 Mostrando mensagem de lista vazia');
       } else {
         document.getElementById('emptyList').classList.add('hidden');
-        console.log('📋 Escondendo mensagem de lista vazia - há', tasks.length, 'tarefas');
       }
     }
 
@@ -5614,8 +5561,6 @@ CREATE TABLE task_attachments (
           
           // Atualizar visibilidade do botão de pendências
           updatePendingApprovalsButtonVisibility();
-          
-          console.log('🔧 BYPASS: Admin definido, isAdmin:', isAdmin);
           
           // Debug: Verificar se o modal de confirmação existe
           const confirmationModal = document.getElementById('confirmationRequestModal');
