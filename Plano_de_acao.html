@@ -1226,7 +1226,6 @@
             .insert({
               email: user.email,
               nome: user.user_metadata?.full_name || user.email.split('@')[0],
-              auth_id: user.id,
               avatar_url: user.user_metadata?.avatar_url || null,
               setor_id: setorDefault.id,
               is_admin: true, // FORÇAR como admin para teste
