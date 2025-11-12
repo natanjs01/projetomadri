@@ -277,6 +277,16 @@
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"/></svg>
           <span class="hidden sm:inline">Admin</span>
         </button>
+        
+        <!-- Botão Pendências de Aprovação (só para admin) -->
+        <button id="btnPendingApprovals" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-600 text-white hover:bg-orange-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 transition hidden relative" title="Solicitações Pendentes de Aprovação" aria-label="Pendências">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span class="hidden sm:inline">Pendências</span>
+          <span id="pendingBadge" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center hidden">0</span>
+        </button>
+        
         <button id="btnLogout" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-600 text-white hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition" title="Sair do sistema" aria-label="Logout">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14l5-5-5-5m5 5H9"/></svg>
           <span class="hidden sm:inline">Sair</span>
@@ -821,6 +831,36 @@
           </div>
         </div>
 
+        <!-- Solicitações de Conclusão Pendentes -->
+        <div class="bg-white p-6 rounded-xl border shadow-sm mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <span class="bg-orange-100 p-2 rounded-lg">
+                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </span>
+              Solicitações de Conclusão Pendentes
+              <span id="pendingRequestsCount" class="bg-red-500 text-white text-xs px-2 py-1 rounded-full hidden">0</span>
+            </h4>
+            <button id="refreshPendingRequests" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+              <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Atualizar
+            </button>
+          </div>
+          
+          <div id="pendingRequestsContainer" class="space-y-3">
+            <div class="text-center text-gray-500 py-8" id="noPendingRequests">
+              <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <p>Nenhuma solicitação pendente</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Gráfico de Tarefas por Setor -->
         <div class="bg-white p-6 rounded-xl border shadow-sm mb-6">
           <h4 class="text-lg font-semibold text-gray-800 mb-4">Distribuição de Tarefas por Setor</h4>
@@ -841,6 +881,172 @@
           📥 Exportar Relatório
         </button>
         <button type="button" id="btnCloseReportsModal2" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 transition">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal: Solicitar Confirmação de Conclusão -->
+  <dialog id="confirmationRequestModal" class="rounded-2xl w-11/12 max-w-2xl p-0 shadow-2xl">
+    <div class="bg-white rounded-2xl max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center p-5 border-b bg-green-50">
+        <h3 class="text-xl font-semibold text-green-800">✅ Solicitar Confirmação de Conclusão</h3>
+        <button type="button" id="btnCloseConfirmationModal" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
+      </div>
+      
+      <form id="confirmationForm" class="flex-1 overflow-y-auto p-5">
+        <div class="mb-4">
+          <p class="text-sm text-slate-600 mb-3">Você está solicitando a confirmação de conclusão para a seguinte tarefa:</p>
+          <div class="bg-slate-50 p-4 rounded-lg border">
+            <h4 id="confirmationTaskTitle" class="font-medium text-slate-800 mb-2"></h4>
+            <p id="confirmationTaskDescription" class="text-sm text-slate-600"></p>
+          </div>
+        </div>
+        
+        <div class="mb-6">
+          <label for="confirmationNotes" class="block text-sm font-medium text-slate-700 mb-2">
+            Observações sobre a conclusão <span class="text-slate-400">(opcional)</span>
+          </label>
+          <textarea 
+            id="confirmationNotes" 
+            rows="4" 
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
+            placeholder="Descreva brevemente como a tarefa foi concluída ou adicione observações relevantes..."
+          ></textarea>
+          <p class="text-xs text-slate-500 mt-1">Estas observações ajudarão o administrador a avaliar a conclusão da tarefa.</p>
+        </div>
+        
+        <div class="flex justify-end gap-3 pt-4 border-t">
+          <button type="button" id="btnCancelConfirmationRequest" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 transition">
+            Cancelar
+          </button>
+          <button type="submit" class="px-6 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 transition font-medium">
+            Enviar Solicitação
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Modal: Aprovar/Rejeitar Solicitação de Conclusão -->
+  <dialog id="approvalModal" class="rounded-2xl w-11/12 max-w-3xl p-0 shadow-2xl">
+    <div class="bg-white rounded-2xl max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center p-5 border-b bg-blue-50">
+        <h3 class="text-xl font-semibold text-blue-800">⚖️ Avaliar Solicitação de Conclusão</h3>
+        <button type="button" id="btnCloseApprovalModal" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
+      </div>
+      
+      <div class="flex-1 overflow-y-auto p-5">
+        <!-- Informações da Tarefa -->
+        <div class="mb-6">
+          <h4 class="font-semibold text-gray-800 mb-3">📋 Informações da Tarefa</h4>
+          <div class="bg-slate-50 p-4 rounded-lg border">
+            <h5 id="approvalTaskTitle" class="font-medium text-slate-800 mb-2"></h5>
+            <p id="approvalTaskDescription" class="text-sm text-slate-600 mb-2"></p>
+            <div class="flex gap-4 text-xs text-slate-500">
+              <span>👤 <span id="approvalTaskAssignee"></span></span>
+              <span>📅 <span id="approvalTaskDue"></span></span>
+              <span>🏷️ <span id="approvalTaskStatus"></span></span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Informações da Solicitação -->
+        <div class="mb-6">
+          <h4 class="font-semibold text-gray-800 mb-3">📤 Solicitação de Conclusão</h4>
+          <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div class="flex gap-4 text-sm text-green-700 mb-2">
+              <span>👤 Solicitado por: <span id="approvalRequestedBy" class="font-medium"></span></span>
+              <span>📅 Em: <span id="approvalRequestedAt" class="font-medium"></span></span>
+            </div>
+            <div>
+              <p class="text-sm text-gray-700 font-medium mb-1">Observações do usuário:</p>
+              <p id="approvalUserNotes" class="text-sm text-gray-600 bg-white p-3 rounded border italic"></p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Decisão do Administrador -->
+        <div class="mb-6">
+          <h4 class="font-semibold text-gray-800 mb-3">⚖️ Sua Decisão</h4>
+          <div class="flex gap-4 mb-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="approvalDecision" value="approve" class="text-green-600">
+              <span class="bg-green-100 text-green-800 px-3 py-2 rounded-lg font-medium">✅ Aprovar Conclusão</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="approvalDecision" value="reject" class="text-red-600">
+              <span class="bg-red-100 text-red-800 px-3 py-2 rounded-lg font-medium">❌ Rejeitar Solicitação</span>
+            </label>
+          </div>
+          
+          <div>
+            <label for="adminNotes" class="block text-sm font-medium text-slate-700 mb-2">
+              Observações administrativas <span class="text-slate-400">(opcional)</span>
+            </label>
+            <textarea 
+              id="adminNotes" 
+              rows="3" 
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              placeholder="Adicione observações sobre sua decisão..."
+            ></textarea>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex justify-end gap-3 p-5 border-t bg-gray-50">
+        <button type="button" id="btnCancelApproval" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 transition">
+          Cancelar
+        </button>
+        <button type="button" id="btnConfirmApproval" class="px-6 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition font-medium">
+          Confirmar Decisão
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal: Lista de Pendências de Aprovação -->
+  <dialog id="pendingApprovalsModal" class="rounded-2xl w-11/12 max-w-5xl p-0 shadow-2xl">
+    <div class="bg-white rounded-2xl max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center p-5 border-b bg-orange-50">
+        <h3 class="text-xl font-semibold text-orange-800 flex items-center gap-3">
+          <span class="bg-orange-100 p-2 rounded-lg">
+            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </span>
+          Solicitações de Conclusão Pendentes
+          <span id="pendingModalCount" class="bg-red-500 text-white text-sm px-3 py-1 rounded-full hidden">0</span>
+        </h3>
+        <div class="flex items-center gap-3">
+          <button id="btnRefreshPending" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Atualizar
+          </button>
+          <button type="button" id="btnClosePendingModal" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
+        </div>
+      </div>
+      
+      <div class="flex-1 overflow-y-auto p-5">
+        <div id="pendingListContainer" class="space-y-4">
+          <div class="text-center text-gray-500 py-12" id="noPendingMessage">
+            <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <h4 class="text-lg font-medium text-gray-900 mb-2">Nenhuma solicitação pendente</h4>
+            <p class="text-gray-600">Todas as solicitações de conclusão foram processadas.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex justify-between items-center p-5 border-t bg-gray-50">
+        <div class="text-sm text-gray-600">
+          <span>💡 <strong>Dica:</strong> Clique em "⚖️ Avaliar" para aprovar ou rejeitar cada solicitação</span>
+        </div>
+        <button type="button" id="btnClosePendingModal2" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 transition">
           Fechar
         </button>
       </div>
@@ -964,6 +1170,9 @@
           currentUserData = userData; // Armazenar dados completos
           currentSetor = userData.setores; // Pode ser null para admin
           isAdmin = userData.is_admin;
+          
+          // Atualizar visibilidade do botão de pendências
+          updatePendingApprovalsButtonVisibility();
           
           console.log('🔍 Debug dados do usuário:', {
             userData: userData,
@@ -1233,7 +1442,6 @@
             if (btnManageStatus) btnManageStatus.classList.remove('hidden');
             if (btnNew) btnNew.classList.remove('hidden');
             if (btnReset) btnReset.classList.remove('hidden');
-            if (btnResetFilters) btnResetFilters.classList.remove('hidden');
             if (btnExport) btnExport.classList.remove('hidden');
             if (btnImport) btnImport.classList.remove('hidden');
             if (setorFilter) setorFilter.style.display = 'flex';
@@ -1255,7 +1463,6 @@
             if (btnManageStatus) btnManageStatus.classList.add('hidden');
             if (btnNew) btnNew.classList.add('hidden');
             if (btnReset) btnReset.classList.add('hidden');
-            if (btnResetFilters) btnResetFilters.classList.add('hidden');
             if (btnExport) btnExport.classList.add('hidden');
             if (btnImport) btnImport.classList.add('hidden');
             if (setorFilter) setorFilter.style.display = 'none';
@@ -1267,6 +1474,9 @@
               adminBadge.remove();
             }
           }
+          
+          // Botão "Limpar Filtros" sempre disponível para todos os usuários
+          if (btnResetFilters) btnResetFilters.classList.remove('hidden');
         }
       }
 
@@ -2119,12 +2329,15 @@
 
       // === RELATÓRIOS ADMINISTRATIVOS ===
       async function loadAdminReports() {
+        console.log('📊 loadAdminReports chamada');
         try {
           await Promise.all([
             loadDashboardStats(),
             loadTasksPerSetorChart(),
-            loadUsersPerSetorTable()
+            loadUsersPerSetorTable(),
+            loadPendingRequests()
           ]);
+          console.log('📊 loadAdminReports concluída com sucesso');
         } catch (error) {
           console.error('Erro ao carregar relatórios:', error);
           showToast('Erro ao carregar relatórios administrativos', 'error');
@@ -2331,6 +2544,53 @@
       document.getElementById('btnLogout')?.addEventListener('click', logout);
       document.getElementById('btnAdmin')?.addEventListener('click', openAdminPanel);
       document.getElementById('setorSelect')?.addEventListener('change', handleSetorFilter);
+
+      // Event listeners para o novo modal de pendências
+      document.getElementById('btnPendingApprovals')?.addEventListener('click', () => {
+        console.log('🔍 Abrindo modal de pendências...');
+        const modal = document.getElementById('pendingApprovalsModal');
+        if (modal) {
+          modal.showModal();
+          loadPendingRequests();
+        } else {
+          console.error('❌ Modal pendingApprovalsModal não encontrado!');
+        }
+      });
+
+      document.getElementById('btnClosePendingModal')?.addEventListener('click', () => {
+        console.log('❌ Fechando modal de pendências (botão X)...');
+        const modal = document.getElementById('pendingApprovalsModal');
+        if (modal) {
+          modal.close();
+        }
+      });
+
+      document.getElementById('btnClosePendingModal2')?.addEventListener('click', () => {
+        console.log('❌ Fechando modal de pendências (botão Fechar)...');
+        const modal = document.getElementById('pendingApprovalsModal');
+        if (modal) {
+          modal.close();
+        }
+      });
+
+      // Event listener para tecla Escape no modal
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          const modal = document.getElementById('pendingApprovalsModal');
+          if (modal && modal.open) {
+            console.log('❌ Fechando modal de pendências (Escape)...');
+            modal.close();
+          }
+        }
+      });
+
+      window.addEventListener('click', (event) => {
+        const modal = document.getElementById('pendingApprovalsModal');
+        if (event.target === modal) {
+          console.log('❌ Fechando modal de pendências (clique fora)...');
+          modal.close();
+        }
+      });
 
       // Função para carregar setores dinamicamente do banco
       async function loadSetoresDynamic() {
@@ -2578,6 +2838,61 @@
       document.getElementById('btnExportReports')?.addEventListener('click', () => {
         showToast('Funcionalidade de exportação em desenvolvimento', 'info');
       });
+
+      // Event listeners para o modal de confirmação de conclusão
+      document.getElementById('btnCloseConfirmationModal')?.addEventListener('click', () => {
+        document.getElementById('confirmationRequestModal').close();
+      });
+      
+      document.getElementById('btnCancelConfirmationRequest')?.addEventListener('click', () => {
+        document.getElementById('confirmationRequestModal').close();
+      });
+      
+      // Formulário de solicitação de confirmação
+      document.getElementById('confirmationForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const taskId = this.dataset.taskId;
+        const notes = document.getElementById('confirmationNotes').value.trim();
+        
+        if (!taskId) {
+          alert('Erro: ID da tarefa não encontrado.');
+          return;
+        }
+        
+        // Desabilitar botão para evitar cliques duplos
+        const submitButton = this.querySelector('button[type="submit"]');
+        const originalText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Enviando...';
+        
+        try {
+          const success = await handleRequestCompletion(taskId, notes);
+          if (!success) {
+            // Reabilitar botão se houve erro
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
+          }
+        } catch (error) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalText;
+          console.error('Erro ao processar solicitação:', error);
+        }
+      });
+
+      // Event listeners para o modal de aprovação
+      document.getElementById('btnCloseApprovalModal')?.addEventListener('click', () => {
+        document.getElementById('approvalModal').close();
+      });
+      
+      document.getElementById('btnCancelApproval')?.addEventListener('click', () => {
+        document.getElementById('approvalModal').close();
+      });
+      
+      document.getElementById('btnConfirmApproval')?.addEventListener('click', processApproval);
+      
+      // Botão para atualizar solicitações pendentes
+      document.getElementById('refreshPendingRequests')?.addEventListener('click', loadPendingRequests);
 
       // Listener para mudanças de autenticação (comentado para evitar auto-login)
       // supabaseClient.auth.onAuthStateChange((event, session) => {
@@ -3348,10 +3663,17 @@ CREATE TABLE task_attachments (
       }
     }
         
-        // Construir query base com relacionamento setores
+        // Construir query base com relacionamento setores e campos de confirmação
         let query = supabaseClient.from('tasks').select(`
           *,
-          setores(id, nome, cor)
+          setores(id, nome, cor),
+          confirmation_status,
+          confirmation_requested_at,
+          confirmation_requested_by,
+          confirmation_notes,
+          confirmation_approved_at,
+          confirmation_approved_by,
+          admin_notes
         `);
         
         // Aplicar filtros baseados no tipo de usuário
@@ -3553,6 +3875,525 @@ CREATE TABLE task_attachments (
             console.error('Erro ao carregar do localStorage:', e);
           }
         }
+      }
+    }
+
+    // ====== Sistema de Confirmação de Conclusão ======
+    
+    // Função para abrir modal de solicitação de confirmação
+    function openConfirmationRequest(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) {
+        alert('Tarefa não encontrada!');
+        return;
+      }
+      
+      const titleElement = document.getElementById('confirmationTaskTitle');
+      const descElement = document.getElementById('confirmationTaskDescription');
+      const notesElement = document.getElementById('confirmationNotes');
+      const formElement = document.getElementById('confirmationForm');
+      const modalElement = document.getElementById('confirmationRequestModal');
+      
+      if (!titleElement || !descElement || !notesElement || !formElement || !modalElement) {
+        alert('Erro: Modal não encontrado na página!');
+        return;
+      }
+      
+      titleElement.textContent = task.title;
+      descElement.textContent = task.description || 'Sem descrição';
+      notesElement.value = '';
+      
+      // Armazenar o ID da tarefa no formulário
+      formElement.dataset.taskId = taskId;
+      
+      // Abrir modal
+      modalElement.showModal();
+    }
+    
+    // Função para processar a solicitação de confirmação
+    async function handleRequestCompletion(taskId, notes = '') {
+      try {
+        if (!supabaseClient || !currentUser) {
+          alert('Erro: Sistema não inicializado corretamente.');
+          return false;
+        }
+        
+        console.log('📝 Enviando solicitação de confirmação para tarefa:', taskId);
+        
+        // Atualizar a tarefa no Supabase com os dados da solicitação
+        const { data, error } = await supabaseClient
+          .from('tasks')
+          .update({
+            confirmation_status: 'pending',
+            confirmation_requested_at: new Date().toISOString(),
+            confirmation_requested_by: currentUser.email,
+            confirmation_notes: notes
+          })
+          .eq('id', taskId);
+        
+        if (error) {
+          console.error('❌ Erro ao solicitar confirmação:', error);
+          alert('Erro ao enviar solicitação: ' + error.message);
+          return false;
+        }
+        
+        // Atualizar a tarefa local também
+        const taskIndex = tasks.findIndex(t => t.id === taskId);
+        if (taskIndex !== -1) {
+          tasks[taskIndex].confirmation_status = 'pending';
+          tasks[taskIndex].confirmation_requested_at = new Date().toISOString();
+          tasks[taskIndex].confirmation_requested_by = currentUser.email;
+          tasks[taskIndex].confirmation_notes = notes;
+        }
+        
+        console.log('✅ Solicitação de confirmação enviada com sucesso!');
+        alert('✅ Solicitação de confirmação enviada! O administrador será notificado.');
+        
+        // Fechar modal e atualizar interface
+        document.getElementById('confirmationRequestModal').close();
+        refreshAll();
+        
+        return true;
+        
+      } catch (error) {
+        console.error('❌ Erro inesperado ao solicitar confirmação:', error);
+        alert('Erro inesperado: ' + error.message);
+        return false;
+      }
+    }
+
+    // Função para controlar visibilidade do botão de pendências
+    function updatePendingApprovalsButtonVisibility() {
+      const btnPendingApprovals = document.getElementById('btnPendingApprovals');
+      console.log('👁️ updatePendingApprovalsButtonVisibility - isAdmin:', isAdmin, 'botão encontrado:', !!btnPendingApprovals);
+      
+      if (btnPendingApprovals) {
+        if (isAdmin) {
+          btnPendingApprovals.classList.remove('hidden');
+          console.log('👁️ Botão de pendências exibido para admin');
+        } else {
+          btnPendingApprovals.classList.add('hidden');
+          console.log('👁️ Botão de pendências oculto para não-admin');
+        }
+      }
+    }
+
+    // ====== Sistema de Aprovação Administrativa ======
+    
+    // Função para carregar solicitações pendentes
+    async function loadPendingRequests() {
+      try {
+        console.log('📋 =================================');
+        console.log('📋 DIAGNÓSTICO DE PENDÊNCIAS');
+        console.log('📋 =================================');
+        console.log('📋 isAdmin:', isAdmin);
+        console.log('📋 supabaseClient:', !!supabaseClient);
+        console.log('📋 currentUser:', currentUser);
+        
+        if (!supabaseClient) {
+          console.error('❌ Supabase client não disponível');
+          return;
+        }
+        
+        if (!isAdmin) {
+          console.log('⚠️ Usuário não é admin - ignorando carregamento');
+          return;
+        }
+        
+        console.log('📋 ✅ Iniciando busca por solicitações pendentes...');
+        
+        const { data, error } = await supabaseClient
+          .from('tasks')
+          .select(`
+            id, title, description, assignee, due_date, status, priority,
+            confirmation_status,
+            confirmation_requested_at,
+            confirmation_requested_by,
+            confirmation_notes,
+            setores(nome)
+          `)
+          .eq('confirmation_status', 'pending')
+          .order('confirmation_requested_at', { ascending: false });
+        
+        console.log('📋 Resposta da query:', { data, error });
+        
+        // DEBUG: Vamos verificar TODAS as tarefas com campos de confirmação
+        const { data: allConfirmations, error: debugError } = await supabaseClient
+          .from('tasks')
+          .select('id, title, confirmation_status, confirmation_requested_at, confirmation_requested_by')
+          .not('confirmation_status', 'is', null);
+        
+        console.log('📋 DEBUG - TODAS as tarefas com confirmation_status:', allConfirmations);
+        
+        if (error) {
+          console.error('❌ Erro ao carregar solicitações pendentes:', error);
+          return;
+        }
+        
+        console.log(`✅ ${data?.length || 0} solicitações pendentes carregadas:`, data);
+        
+        if (data && data.length > 0) {
+          console.log('📋 Renderizando pendências...');
+          renderPendingRequests(data);
+          renderPendingListModal(data);
+        } else {
+          console.log('📋 Nenhuma pendência encontrada - limpando interfaces');
+          renderPendingRequests([]);
+          renderPendingListModal([]);
+        }
+        
+        updateNotificationBadge(data?.length || 0);
+        
+        return data || [];
+        
+      } catch (error) {
+        console.error('❌ Erro inesperado ao carregar solicitações:', error);
+        return [];
+      }
+    }
+    
+    // Função para renderizar lista de solicitações pendentes
+    function renderPendingRequests(requests) {
+      console.log('🎨 renderPendingRequests chamada com', requests.length, 'solicitações');
+      
+      const container = document.getElementById('pendingRequestsContainer');
+      const noRequests = document.getElementById('noPendingRequests');
+      const countBadge = document.getElementById('pendingRequestsCount');
+      
+      console.log('🎨 Elementos encontrados:', {
+        container: !!container,
+        noRequests: !!noRequests,
+        countBadge: !!countBadge
+      });
+      
+      if (!container) {
+        console.error('❌ Container pendingRequestsContainer não encontrado!');
+        return;
+      }
+      
+      // Atualizar contador
+      if (countBadge) {
+        if (requests.length > 0) {
+          countBadge.textContent = requests.length;
+          countBadge.classList.remove('hidden');
+        } else {
+          countBadge.classList.add('hidden');
+        }
+      }
+      
+      if (requests.length === 0) {
+        container.innerHTML = '';
+        if (noRequests) noRequests.style.display = 'block';
+        return;
+      }
+      
+      if (noRequests) noRequests.style.display = 'none';
+      
+      container.innerHTML = requests.map(request => {
+        const requestDate = new Date(request.confirmation_requested_at);
+        const timeAgo = getTimeAgo(requestDate);
+        
+        return `
+          <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 hover:bg-orange-100 transition">
+            <div class="flex justify-between items-start gap-4">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                  <h5 class="font-medium text-gray-800">${request.title}</h5>
+                  <span class="text-xs bg-${getPriorityColor(request.priority)}-100 text-${getPriorityColor(request.priority)}-700 px-2 py-1 rounded">${request.priority}</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-3">${request.description || 'Sem descrição'}</p>
+                
+                <div class="flex flex-wrap gap-4 text-xs text-gray-500 mb-3">
+                  <span>👤 ${request.assignee || 'Não atribuído'}</span>
+                  <span>📅 ${formatDate(request.due_date)}</span>
+                  <span>🏢 ${request.setores?.nome || 'Sem setor'}</span>
+                </div>
+                
+                <div class="bg-white p-3 rounded border text-sm">
+                  <div class="flex items-center gap-2 text-xs text-orange-600 mb-1">
+                    <span>👤 ${request.confirmation_requested_by}</span>
+                    <span>•</span>
+                    <span>🕒 ${timeAgo}</span>
+                  </div>
+                  <p class="text-gray-700 italic">"${request.confirmation_notes || 'Sem observações'}"</p>
+                </div>
+              </div>
+              
+              <div class="flex flex-col gap-2">
+                <button 
+                  onclick="openApprovalModal('${request.id}')" 
+                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                >
+                  ⚖️ Avaliar
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Função para renderizar pendências no modal dedicado
+    function renderPendingListModal(requests) {
+      console.log('🎨 renderPendingListModal chamada com', requests.length, 'solicitações');
+      
+      const container = document.getElementById('pendingListContainer');
+      const noMessage = document.getElementById('noPendingMessage');
+      const countBadge = document.getElementById('pendingModalCount');
+      
+      if (!container) {
+        console.error('❌ Container pendingListContainer não encontrado!');
+        return;
+      }
+      
+      // Atualizar contador
+      if (countBadge) {
+        if (requests.length > 0) {
+          countBadge.textContent = requests.length;
+          countBadge.classList.remove('hidden');
+        } else {
+          countBadge.classList.add('hidden');
+        }
+      }
+      
+      if (requests.length === 0) {
+        container.innerHTML = '';
+        if (noMessage) noMessage.style.display = 'block';
+        return;
+      }
+      
+      if (noMessage) noMessage.style.display = 'none';
+      
+      container.innerHTML = requests.map(request => {
+        const requestDate = new Date(request.confirmation_requested_at);
+        const timeAgo = getTimeAgo(requestDate);
+        
+        return `
+          <div class="bg-white border border-orange-200 rounded-lg p-6 hover:shadow-md transition">
+            <div class="flex justify-between items-start gap-6">
+              <div class="flex-1">
+                <!-- Cabeçalho da tarefa -->
+                <div class="flex items-center gap-3 mb-3">
+                  <h4 class="text-lg font-semibold text-gray-800">${request.title}</h4>
+                  <span class="text-xs bg-${getPriorityColor(request.priority)}-100 text-${getPriorityColor(request.priority)}-700 px-2 py-1 rounded font-medium">${request.priority || 'Média'}</span>
+                  <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">${request.status}</span>
+                </div>
+                
+                <!-- Descrição da tarefa -->
+                <p class="text-gray-600 mb-4">${request.description || 'Sem descrição detalhada'}</p>
+                
+                <!-- Informações da tarefa -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
+                  <div class="flex items-center gap-1">
+                    <span>👤</span>
+                    <span><strong>Responsável:</strong> ${request.assignee || 'Não atribuído'}</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <span>📅</span>
+                    <span><strong>Prazo:</strong> ${formatDate(request.due_date)}</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <span>🏢</span>
+                    <span><strong>Setor:</strong> ${request.setores?.nome || 'Sem setor'}</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <span>🕒</span>
+                    <span><strong>Solicitado:</strong> ${timeAgo}</span>
+                  </div>
+                </div>
+                
+                <!-- Solicitação do usuário -->
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div class="flex items-center gap-2 text-orange-700 mb-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                    <span class="font-medium">${request.confirmation_requested_by}</span>
+                    <span class="text-xs text-orange-600">• ${timeAgo}</span>
+                  </div>
+                  <div class="text-gray-700">
+                    <p class="text-sm font-medium mb-1">💬 Observações do usuário:</p>
+                    <p class="text-sm italic">"${request.confirmation_notes || 'Nenhuma observação fornecida pelo usuário'}"</p>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Ação -->
+              <div class="flex flex-col items-end gap-2">
+                <button 
+                  onclick="openApprovalModal('${request.id}')" 
+                  class="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
+                >
+                  ⚖️ Avaliar Solicitação
+                </button>
+                <span class="text-xs text-gray-500 text-center">
+                  Aprovar ou Rejeitar
+                </span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Função para abrir modal de aprovação
+    async function openApprovalModal(taskId) {
+      try {
+        console.log('🔍 Abrindo modal de aprovação para tarefa:', taskId);
+        
+        // Buscar dados completos da tarefa
+        const { data, error } = await supabaseClient
+          .from('tasks')
+          .select(`
+            id, title, description, assignee, due_date, status, priority,
+            confirmation_status, confirmation_requested_at, confirmation_requested_by, 
+            confirmation_notes, setores(nome)
+          `)
+          .eq('id', taskId)
+          .single();
+        
+        if (error || !data) {
+          console.error('❌ Erro ao carregar dados da tarefa:', error);
+          alert('Erro ao carregar dados da tarefa!');
+          return;
+        }
+        
+        // Preencher modal com dados da tarefa
+        document.getElementById('approvalTaskTitle').textContent = data.title;
+        document.getElementById('approvalTaskDescription').textContent = data.description || 'Sem descrição';
+        document.getElementById('approvalTaskAssignee').textContent = data.assignee || 'Não atribuído';
+        document.getElementById('approvalTaskDue').textContent = formatDate(data.due_date);
+        document.getElementById('approvalTaskStatus').textContent = data.status;
+        
+        // Preencher dados da solicitação
+        document.getElementById('approvalRequestedBy').textContent = data.confirmation_requested_by;
+        document.getElementById('approvalRequestedAt').textContent = formatDate(data.confirmation_requested_at);
+        document.getElementById('approvalUserNotes').textContent = data.confirmation_notes || 'Nenhuma observação fornecida';
+        
+        // Limpar formulário
+        document.querySelectorAll('input[name="approvalDecision"]').forEach(radio => radio.checked = false);
+        document.getElementById('adminNotes').value = '';
+        
+        // Armazenar ID da tarefa no modal
+        document.getElementById('approvalModal').dataset.taskId = taskId;
+        
+        // Abrir modal
+        document.getElementById('approvalModal').showModal();
+        
+      } catch (error) {
+        console.error('❌ Erro inesperado:', error);
+        alert('Erro inesperado: ' + error.message);
+      }
+    }
+    
+    // Função para processar aprovação/rejeição
+    async function processApproval() {
+      try {
+        const modal = document.getElementById('approvalModal');
+        const taskId = modal.dataset.taskId;
+        
+        if (!taskId) {
+          alert('Erro: ID da tarefa não encontrado.');
+          return;
+        }
+        
+        // Verificar se uma decisão foi selecionada
+        const decision = document.querySelector('input[name="approvalDecision"]:checked')?.value;
+        if (!decision) {
+          alert('Por favor, selecione uma decisão (Aprovar ou Rejeitar).');
+          return;
+        }
+        
+        const adminNotes = document.getElementById('adminNotes').value.trim();
+        const isApproved = decision === 'approve';
+        
+        console.log(`📝 Processando ${isApproved ? 'aprovação' : 'rejeição'} da tarefa:`, taskId);
+        
+        // Dados para atualizar
+        const updateData = {
+          confirmation_status: isApproved ? 'approved' : 'rejected',
+          confirmation_approved_at: new Date().toISOString(),
+          confirmation_approved_by: currentUser.email,
+          admin_notes: adminNotes
+        };
+        
+        // Se aprovado, marcar tarefa como concluída
+        if (isApproved) {
+          updateData.status = 'Concluído';
+        }
+        
+        // Atualizar no Supabase
+        const { error } = await supabaseClient
+          .from('tasks')
+          .update(updateData)
+          .eq('id', taskId);
+        
+        if (error) {
+          console.error('❌ Erro ao processar aprovação:', error);
+          alert('Erro ao processar: ' + error.message);
+          return;
+        }
+        
+        const action = isApproved ? 'aprovada' : 'rejeitada';
+        console.log(`✅ Solicitação ${action} com sucesso!`);
+        alert(`✅ Solicitação ${action} com sucesso!`);
+        
+        // Fechar modal e atualizar listas
+        modal.close();
+        await loadPendingRequests();
+        await loadTasksFromSupabase();
+        refreshAll();
+        
+      } catch (error) {
+        console.error('❌ Erro inesperado ao processar aprovação:', error);
+        alert('Erro inesperado: ' + error.message);
+      }
+    }
+    
+    // Função para atualizar badge de notificação
+    function updateNotificationBadge(count) {
+      console.log('🔔 updateNotificationBadge chamada com count:', count);
+      
+      // Badge no novo botão de pendências (principal)
+      const pendingBadge = document.getElementById('pendingBadge');
+      console.log('🔔 Badge pendências encontrado:', !!pendingBadge);
+      
+      if (pendingBadge) {
+        if (count > 0) {
+          pendingBadge.textContent = count;
+          pendingBadge.classList.remove('hidden');
+          console.log('🔔 Badge pendências exibido com count:', count);
+        } else {
+          pendingBadge.classList.add('hidden');
+          console.log('🔔 Badge pendências ocultado');
+        }
+      }
+    }
+
+    // ====== Funções Utilitárias para Aprovações ======
+    
+    function getTimeAgo(date) {
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffMinutes < 60) {
+        return `${diffMinutes} min atrás`;
+      } else if (diffHours < 24) {
+        return `${diffHours}h atrás`;
+      } else {
+        return `${diffDays} dias atrás`;
+      }
+    }
+    
+    function getPriorityColor(priority) {
+      switch (priority) {
+        case 'Alta': return 'red';
+        case 'Média': return 'yellow';
+        case 'Baixa': return 'green';
+        default: return 'gray';
       }
     }
 
@@ -3865,6 +4706,7 @@ CREATE TABLE task_attachments (
             <div class="flex justify-end gap-2">
               <button class="px-3 py-1 rounded-xl bg-slate-200" data-act="view" data-id="${t.id}">Ver</button>
               ${isAdmin ? `<button class="px-3 py-1 rounded-xl bg-amber-200" data-act="edit" data-id="${t.id}">Editar</button>` : ''}
+              ${!isAdmin && t.status !== 'Concluído' ? `<button class="px-3 py-1 rounded-xl bg-green-200" data-act="requestCompletion" data-id="${t.id}">Solicitar Conclusão</button>` : ''}
               ${isAdmin ? `<button class="px-3 py-1 rounded-xl bg-rose-200" data-act="del" data-id="${t.id}">Excluir</button>` : ''}
             </div>
           </td>`;
@@ -3926,6 +4768,7 @@ CREATE TABLE task_attachments (
           <div class='flex flex-wrap items-center gap-2 mt-1'>${(t.tags||[]).map(x=>`<span class='text-xs font-medium bg-slate-100 border border-slate-200 rounded px-2 py-0.5 mr-1'>${x}</span>`).join('')}${imgs}</div>
           <div class='flex justify-end gap-2 mt-2'>
             <button class='px-2 py-1 rounded-xl bg-slate-200 text-xs' data-act='view' data-id='${t.id}' aria-label='Ver detalhes'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><circle cx='12' cy='12' r='4'/></svg></button>
+            ${!isAdmin && t.status !== 'Concluído' ? `<button class='px-2 py-1 rounded-xl bg-green-200 text-xs' data-act='requestCompletion' data-id='${t.id}' aria-label='Solicitar Conclusão'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><polyline points='20 6 9 17 4 12'/></svg></button>` : ''}
             ${isAdmin ? `<button class='px-2 py-1 rounded-xl bg-amber-200 text-xs' data-act='edit' data-id='${t.id}' aria-label='Editar'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M12 20h9'/><path d='M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z'/></svg></button>` : ''}
             ${isAdmin ? `<button class='px-2 py-1 rounded-xl bg-rose-200 text-xs' data-act='del' data-id='${t.id}' aria-label='Excluir'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6'/></svg></button>` : ''}
           </div>`;
@@ -4277,6 +5120,9 @@ CREATE TABLE task_attachments (
         }
         if (act==='edit') { openEdit(t); }
         if (act==='view') { openDetail(t); }
+        if (act==='requestCompletion') { 
+          openConfirmationRequest(id); 
+        }
       } catch (error) {
         console.error('Erro geral no onActionClick:', error);
       }
@@ -4686,9 +5532,20 @@ CREATE TABLE task_attachments (
     
     function refreshAll() {
       console.log('🔄 refreshAll() chamada - Total de tarefas:', tasks.length);
+      console.log('🔄 isAdmin:', isAdmin, 'supabaseClient:', !!supabaseClient);
       kpi.render();
       refreshCharts();
       refreshViews();
+      
+      // Controlar visibilidade do botão de pendências
+      updatePendingApprovalsButtonVisibility();
+      
+      // Carregar pendências se for admin
+      if (isAdmin && supabaseClient) {
+        console.log('🔄 Carregando pendências de aprovação...');
+        loadPendingRequests();
+      }
+      
       // Força exibir todas as tarefas se tasks estiver vazio
       if (!tasks || tasks.length === 0) {
         document.getElementById('emptyList').classList.remove('hidden');
@@ -4755,9 +5612,68 @@ CREATE TABLE task_attachments (
           currentSetor = null; // Admin não tem setor
           isAdmin = true;
           
+          // Atualizar visibilidade do botão de pendências
+          updatePendingApprovalsButtonVisibility();
+          
+          console.log('🔧 BYPASS: Admin definido, isAdmin:', isAdmin);
+          
+          // Debug: Verificar se o modal de confirmação existe
+          const confirmationModal = document.getElementById('confirmationRequestModal');
+          console.log('🔧 Modal de confirmação encontrado:', !!confirmationModal);
+          
+          // Botão temporário para debug de pendências
+          setTimeout(() => {
+            const debugButton = document.createElement('button');
+            debugButton.textContent = 'DEBUG: Carregar Pendências';
+            debugButton.style.cssText = 'position: fixed; top: 50px; right: 10px; z-index: 9999; background: purple; color: white; padding: 10px; font-size: 12px;';
+            debugButton.onclick = async () => {
+              console.log('🔧 Debug: Forçando carregamento de pendências...');
+              await loadPendingRequests();
+            };
+            document.body.appendChild(debugButton);
+            
+            // Botão para criar solicitação fake (apenas para teste)
+            const fakeButton = document.createElement('button');
+            fakeButton.textContent = 'TESTE: Criar Solicitação Fake';
+            fakeButton.style.cssText = 'position: fixed; top: 90px; right: 10px; z-index: 9999; background: orange; color: white; padding: 10px; font-size: 12px;';
+            fakeButton.onclick = async () => {
+              console.log('🔧 Criando solicitação fake...');
+              if (tasks.length > 0) {
+                const firstTask = tasks[0];
+                const { error } = await supabaseClient
+                  .from('tasks')
+                  .update({
+                    confirmation_status: 'pending',
+                    confirmation_requested_at: new Date().toISOString(),
+                    confirmation_requested_by: 'teste@exemplo.com',
+                    confirmation_notes: 'Solicitação de teste criada pelo debug'
+                  })
+                  .eq('id', firstTask.id);
+                
+                if (error) {
+                  console.error('Erro ao criar solicitação fake:', error);
+                  alert('Erro: ' + error.message);
+                } else {
+                  console.log('✅ Solicitação fake criada!');
+                  alert('Solicitação fake criada! Agora clique em "DEBUG: Carregar Pendências"');
+                }
+              } else {
+                alert('Nenhuma tarefa disponível para teste');
+              }
+            };
+            document.body.appendChild(fakeButton);
+          }, 2000);
+          
           showApp();
           startApp();
           updateUserInterface();
+          
+          // Forçar carregamento de pendências para admin
+          setTimeout(async () => {
+            console.log('🚀 Carregamento automático de pendências para admin...');
+            await loadPendingRequests();
+          }, 3000);
+          
           return;
         }
         
