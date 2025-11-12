@@ -1153,9 +1153,11 @@
           console.log('📊 Resultado da busca:', { userData, error });
 
           if (error && error.code === 'PGRST116') {
-            // Usuário não existe, criar novo
-            console.log('❌ Usuário não encontrado no banco, tentando criar...');
-            await createNewUser(user);
+            // ❌ Usuário não existe - isso NÃO deveria acontecer mais
+            // porque já verificamos antes de enviar o código
+            console.error('❌ ERRO CRÍTICO: Usuário autenticou mas não existe no banco!');
+            alert('❌ Erro crítico no sistema!\n\nSeu email foi autenticado, mas não foi encontrado no banco de dados.\n\n📞 Contate o administrador imediatamente.');
+            showLoginScreen();
             return;
           }
 
@@ -1302,7 +1304,47 @@
           document.getElementById('loginForm').style.display = 'none';
           document.getElementById('loginLoading').classList.remove('hidden');
 
-          // Voltar ao método original OTP
+          // 🔒 VERIFICAÇÃO DE SEGURANÇA: Email deve estar pré-autorizado
+          console.log('🔍 Verificando se email está autorizado...');
+          
+          const { data: authorizedUser, error: authError } = await supabaseClient
+            .from('usuarios')
+            .select('email, nome, ativo')
+            .eq('email', email)
+            .single();
+
+          console.log('📊 Resultado da verificação:', { authorizedUser, authError });
+
+          // Se email não está cadastrado, bloquear acesso
+          if (authError && authError.code === 'PGRST116') {
+            console.log('❌ Email não autorizado:', email);
+            alert('❌ Seu usuário não está autorizado por um administrador!\n\nProcure um administrador para realizar seu cadastro de acesso.');
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('loginLoading').classList.add('hidden');
+            return;
+          }
+
+          // Se erro diferente de "não encontrado", mostrar erro
+          if (authError) {
+            console.error('❌ Erro ao verificar autorização:', authError);
+            alert('❌ Erro ao verificar autorização: ' + authError.message);
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('loginLoading').classList.add('hidden');
+            return;
+          }
+
+          // Se usuário está inativo, bloquear acesso
+          if (!authorizedUser.ativo) {
+            console.log('❌ Usuário inativo:', email);
+            alert('❌ Acesso bloqueado!\n\nSua conta foi desativada.\n\n📞 Entre em contato com o administrador.');
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('loginLoading').classList.add('hidden');
+            return;
+          }
+
+          console.log('✅ Email autorizado para:', authorizedUser.nome);
+
+          // Voltar ao método original OTP - SÓ AGORA envia o código
           const { data, error } = await supabaseClient.auth.signInWithOtp({
             email: email,
             options: {
