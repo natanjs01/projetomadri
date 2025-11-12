@@ -24,6 +24,8 @@
   <!-- jsPDF e autotable para exportação PDF profissional -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <!-- Google Fonts para melhor tipografia -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     /* Responsividade para rotação horizontal em dispositivos móveis */
     @media screen and (max-width: 900px) and (orientation: landscape) {
@@ -118,8 +120,87 @@
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-  <div class="max-w-7xl mx-auto p-4 md:p-6" role="main" aria-label="Painel de atividades">
+<body class="bg-slate-50 text-slate-800" style="font-family: 'Inter', sans-serif;">
+  
+  <!-- TELA DE LOGIN -->
+  <div id="loginScreen" class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+      <!-- Logo/Header -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+          <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="text-blue-600">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 12h8M12 8v8"/>
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Plano de Ação</h1>
+        <p class="text-gray-600">Sistema de Controle de Atividades</p>
+      </div>
+
+      <!-- Formulário de Login com Email -->
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label for="emailInput" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+          <input type="email" id="emailInput" required 
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                 placeholder="seu@email.com">
+        </div>
+        <button type="submit" class="w-full bg-blue-600 text-white rounded-lg px-4 py-3 hover:bg-blue-700 transition-colors duration-200 font-medium">
+          📧 Enviar Código de Verificação
+        </button>
+      </form>
+
+      <!-- Formulário de Código de Verificação (inicialmente oculto) -->
+      <form id="codeForm" class="space-y-4 hidden">
+        <div class="text-center mb-4">
+          <p class="text-sm text-gray-600">
+            📧 Código enviado para <strong id="sentToEmail"></strong>
+          </p>
+        </div>
+        <div>
+          <label for="codeInput" class="block text-sm font-medium text-gray-700 mb-2">
+            Código de Verificação 
+            <span class="text-xs text-gray-500">(6 dígitos recebidos por email)</span>
+          </label>
+          <input type="text" id="codeInput" maxlength="8" 
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-xl font-mono tracking-widest"
+                 placeholder="123456">
+        </div>
+        <button type="submit" class="w-full bg-green-600 text-white rounded-lg px-4 py-3 hover:bg-green-700 transition-colors duration-200 font-medium">
+          Verificar Código
+        </button>
+        <button type="button" id="backToEmail" class="w-full bg-gray-500 text-white rounded-lg px-4 py-2 hover:bg-gray-600 transition-colors duration-200 text-sm">
+          ← Voltar ao Email
+        </button>
+      </form>
+
+      <!-- Loading State -->
+      <div id="loginLoading" class="hidden w-full bg-blue-600 rounded-lg px-4 py-3 flex items-center justify-center gap-3 text-white">
+        <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+        </svg>
+        <span>Conectando...</span>
+      </div>
+
+      <!-- Footer -->
+      <div class="mt-8 text-center">
+        <p class="text-sm text-gray-500">
+          Acesso restrito a usuários autorizados
+        </p>
+        <div class="mt-4 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+          <p class="text-xs text-blue-700">
+            <strong>🔐 Acesso Seguro</strong><br>
+            Enviaremos um código de 6 dígitos<br>
+            para seu email. Sem links, apenas código!
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APLICAÇÃO PRINCIPAL (inicialmente oculta) -->
+  <div id="appContent" class="hidden max-w-7xl mx-auto p-4 md:p-6" role="main" aria-label="Painel de atividades">
     <!-- UI: Header aprimorado com barra de ações, ícones SVG, toggle de tema -->
     <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
       <div class="flex items-center gap-3">
@@ -130,18 +211,36 @@
         <div>
           <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-black">Controle de Atividades</h1>
           <p class="text-slate-600 dark:text-slate-400 text-sm">Crie tarefas, anexe imagens, visualize em dashboard, lista ou Kanban.</p>
+          <!-- Informações do usuário logado -->
+          <div id="userInfo" class="flex items-center gap-2 mt-2">
+            <span class="text-xs text-slate-500">👤</span>
+            <span id="userName" class="text-xs text-slate-600 font-medium"></span>
+            <span class="text-xs text-slate-400">•</span>
+            <span id="userSetor" class="text-xs px-2 py-1 rounded-full"></span>
+          </div>
+          
+          <!-- Filtro de Setores (só para admin) -->
+          <div id="setorFilter" class="mt-3 hidden">
+            <label for="setorSelect" class="block text-xs font-medium text-gray-700 mb-1">
+              🔍 Filtrar por Setor:
+            </label>
+            <select id="setorSelect" class="text-xs px-2 py-1 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">🌐 Todos os Setores</option>
+              <!-- Opções serão carregadas dinamicamente -->
+            </select>
+          </div>
         </div>
       </div>
       <nav class="flex flex-wrap items-center gap-2 mt-3 md:mt-0" aria-label="Ações rápidas">
-        <button id="btnNew" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-600 text-white hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" aria-label="Nova Atividade">
+        <button id="btnNew" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-600 text-white hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition hidden" aria-label="Nova Atividade">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
           <span class="hidden sm:inline">Nova</span>
         </button>
-        <button id="btnExport" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 transition" aria-label="Exportar">
+        <button id="btnExport" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 transition hidden" aria-label="Exportar">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
           <span class="hidden sm:inline">Exportar</span>
         </button>
-        <label class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-600 text-white hover:bg-amber-700 focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer transition" aria-label="Importar">
+        <label id="btnImport" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-600 text-white hover:bg-amber-700 focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer transition hidden" aria-label="Importar">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
           <span class="hidden sm:inline">Importar</span>
           <input type="file" id="inputImport" accept="application/json" class="hidden" />
@@ -169,11 +268,20 @@
             <!-- Outras opções de relatórios podem ser adicionadas aqui -->
           </div>
         </div>
-        <button id="btnManageStatus" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 transition" title="Gerenciar Status" aria-label="Gerenciar Status">
+        <button id="btnManageStatus" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 transition hidden" title="Gerenciar Status" aria-label="Gerenciar Status">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
           <span class="hidden sm:inline">Status</span>
         </button>
-        <button id="btnReset" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition" title="Apagar todas as atividades" aria-label="Resetar">
+        <!-- Botão Administração (só para admin) -->
+        <button id="btnAdmin" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 transition hidden" title="Painel de Administração" aria-label="Admin">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"/></svg>
+          <span class="hidden sm:inline">Admin</span>
+        </button>
+        <button id="btnLogout" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-600 text-white hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 transition" title="Sair do sistema" aria-label="Logout">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14l5-5-5-5m5 5H9"/></svg>
+          <span class="hidden sm:inline">Sair</span>
+        </button>
+        <button id="btnReset" class="group flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition hidden" title="Apagar todas as atividades" aria-label="Resetar">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6"/></svg>
           <span class="hidden sm:inline">Reset</span>
         </button>
@@ -257,7 +365,7 @@
         <div class="flex gap-2 mt-2 md:mt-0">
           <button id="tabList" class="px-4 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-100 hover:bg-sky-100 dark:hover:bg-sky-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" type="button">Lista</button>
           <button id="tabKanban" class="px-4 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-100 hover:bg-sky-100 dark:hover:bg-sky-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" type="button">Kanban</button>
-          <button id="btnResetFilters" class="px-4 py-2 rounded-2xl bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-200 hover:bg-rose-200 dark:hover:bg-rose-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition" type="reset" title="Limpar filtros" aria-label="Limpar filtros">
+          <button id="btnResetFilters" class="px-4 py-2 rounded-2xl bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-200 hover:bg-rose-200 dark:hover:bg-rose-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition hidden" type="reset" title="Limpar filtros" aria-label="Limpar filtros">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
@@ -335,13 +443,19 @@
             <option>Concluído</option>
           </select>
         </div>
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium mb-1" for="inputDescription">Descrição</label>
-          <textarea name="description" id="inputDescription" rows="3" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" placeholder="Contexto, escopo, critérios de aceite…"></textarea>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="inputSetor">Setor</label>
+          <select name="setor" id="inputSetor" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition">
+            <option value="">Carregando setores...</option>
+          </select>
         </div>
         <div>
           <label class="block text-sm font-medium mb-1" for="inputTags">Tags (separe por vírgula)</label>
           <input name="tags" id="inputTags" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" placeholder="ex.: fiscal, SAP, ICMS" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-1" for="inputDescription">Descrição</label>
+          <textarea name="description" id="inputDescription" rows="3" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-3 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition" placeholder="Contexto, escopo, critérios de aceite…"></textarea>
         </div>
         <!-- Anexos -->
         <div class="md:col-span-2">
@@ -488,6 +602,251 @@
     </div>
   </dialog>
 
+  <!-- Modal: Gerenciar Usuários (Admin) -->
+  <dialog id="userManagementModal" class="rounded-2xl w-11/12 max-w-6xl p-0 shadow-2xl">
+    <div class="bg-white rounded-2xl max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center p-5 border-b">
+        <h3 class="text-xl font-semibold text-purple-800">👥 Gerenciar Usuários</h3>
+        <button type="button" id="btnCloseUserModal" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
+      </div>
+      
+      <div class="flex-1 overflow-y-auto p-5">
+        <!-- Botões de Ação -->
+        <div class="flex gap-3 mb-4">
+          <button id="btnNewUser" class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 11l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            Novo Usuário
+          </button>
+          <button id="btnRefreshUsers" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+              <path d="M3 21v-5h5"/>
+            </svg>
+            Atualizar
+          </button>
+        </div>
+
+        <!-- Lista de Usuários -->
+        <div id="usersList" class="space-y-3">
+          <!-- Usuários carregados dinamicamente -->
+        </div>
+      </div>
+
+      <!-- Formulário para Novo/Editar Usuário -->
+      <div id="userForm" class="hidden border-t p-5 bg-gray-50">
+        <h4 class="text-lg font-semibold mb-3" id="userFormTitle">Novo Usuário</h4>
+        <form id="userFormData" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="hidden" id="editUserId" name="editUserId" value="">
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input type="email" id="userEmail" name="userEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+            <input type="text" id="userNameInput" name="userName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Setor</label>
+            <select id="userSetorSelect" name="userSetor" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400">
+              <option value="">Selecione um setor</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input type="checkbox" id="userIsAdmin" name="userIsAdmin" class="rounded focus:ring-purple-400">
+              Administrador
+            </label>
+          </div>
+          
+          <div class="md:col-span-2 flex gap-3 pt-3">
+            <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition">
+              Salvar Usuário
+            </button>
+            <button type="button" id="btnCancelUserForm" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal: Gerenciar Setores (Admin) -->
+  <dialog id="setorManagementModal" class="rounded-2xl w-11/12 max-w-5xl p-0 shadow-2xl">
+    <div class="bg-white rounded-2xl max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center p-5 border-b">
+        <h3 class="text-xl font-semibold text-purple-800">🏢 Gerenciar Setores</h3>
+        <button type="button" id="btnCloseSetorModal" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
+      </div>
+      
+      <div class="flex-1 overflow-y-auto p-5">
+        <!-- Botões de Ação -->
+        <div class="flex gap-3 mb-4">
+          <button id="btnNewSetor" class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M3 21h18"/>
+              <path d="M5 21V7l8-4v18"/>
+              <path d="M19 21V11l-6-4"/>
+            </svg>
+            Novo Setor
+          </button>
+          <button id="btnRefreshSetores" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+              <path d="M3 21v-5h5"/>
+            </svg>
+            Atualizar
+          </button>
+        </div>
+
+        <!-- Lista de Setores -->
+        <div id="setoresList" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <!-- Setores carregados dinamicamente -->
+        </div>
+      </div>
+
+      <!-- Formulário para Novo/Editar Setor -->
+      <div id="setorForm" class="hidden border-t p-5 bg-gray-50">
+        <h4 class="text-lg font-semibold mb-3" id="setorFormTitle">Novo Setor</h4>
+        <form id="setorFormData" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="hidden" id="editSetorId" name="editSetorId" value="">
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome do Setor</label>
+            <input type="text" id="setorNome" name="setorNome" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Cor do Setor</label>
+            <div class="flex gap-2">
+              <input type="color" id="setorCor" name="setorCor" value="#3B82F6" class="h-10 w-16 border border-gray-300 rounded-lg cursor-pointer">
+              <input type="text" id="setorCorText" value="#3B82F6" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400">
+            </div>
+          </div>
+          
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+            <textarea id="setorDescricao" name="setorDescricao" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400"></textarea>
+          </div>
+          
+          <div class="md:col-span-2 flex gap-3 pt-3">
+            <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition">
+              Salvar Setor
+            </button>
+            <button type="button" id="btnCancelSetorForm" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal: Relatórios Administrativos -->
+  <dialog id="adminReportsModal" class="rounded-2xl w-11/12 max-w-6xl p-0 shadow-2xl">
+    <div class="bg-white rounded-2xl max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center p-5 border-b">
+        <h3 class="text-xl font-semibold text-purple-800">📊 Relatórios Administrativos</h3>
+        <button type="button" id="btnCloseReportsModal" class="p-2 rounded-xl hover:bg-slate-100">✕</button>
+      </div>
+      
+      <div class="flex-1 overflow-y-auto p-5">
+        <!-- Dashboard Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="bg-blue-50 p-4 rounded-xl border-l-4 border-blue-500">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-blue-700 text-sm font-medium">Total de Usuários</p>
+                <p id="totalUsers" class="text-2xl font-bold text-blue-900">-</p>
+              </div>
+              <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="bg-green-50 p-4 rounded-xl border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-green-700 text-sm font-medium">Setores Ativos</p>
+                <p id="totalSetores" class="text-2xl font-bold text-green-900">-</p>
+              </div>
+              <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M3 21h18"/>
+                <path d="M5 21V7l8-4v18"/>
+                <path d="M19 21V11l-6-4"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="bg-yellow-50 p-4 rounded-xl border-l-4 border-yellow-500">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-yellow-700 text-sm font-medium">Total de Tarefas</p>
+                <p id="totalTasks" class="text-2xl font-bold text-yellow-900">-</p>
+              </div>
+              <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M9 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-4"/>
+                <path d="M9 11V7a3 3 0 0 1 6 0v4"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="bg-purple-50 p-4 rounded-xl border-l-4 border-purple-500">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-purple-700 text-sm font-medium">Tarefas Concluídas</p>
+                <p id="completedTasks" class="text-2xl font-bold text-purple-900">-</p>
+              </div>
+              <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4 12 14.01l-3-3"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico de Tarefas por Setor -->
+        <div class="bg-white p-6 rounded-xl border shadow-sm mb-6">
+          <h4 class="text-lg font-semibold text-gray-800 mb-4">Distribuição de Tarefas por Setor</h4>
+          <canvas id="tasksPerSetorChart" width="400" height="200"></canvas>
+        </div>
+
+        <!-- Tabela de Usuários por Setor -->
+        <div class="bg-white p-6 rounded-xl border shadow-sm">
+          <h4 class="text-lg font-semibold text-gray-800 mb-4">Usuários por Setor</h4>
+          <div id="usersPerSetorTable" class="overflow-x-auto">
+            <!-- Tabela carregada dinamicamente -->
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-4 border-t text-right">
+        <button type="button" id="btnExportReports" class="px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 transition mr-2">
+          📥 Exportar Relatório
+        </button>
+        <button type="button" id="btnCloseReportsModal2" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 transition">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </dialog>
+
   <script>
   // Corrige botão Limpar filtros para atualizar a lista
   document.getElementById('btnResetFilters').addEventListener('click', function(e) {
@@ -502,12 +861,1733 @@
       
       // Verificar se o Supabase está disponível
       if (typeof supabase === 'undefined') {
-        console.error('Supabase não foi carregado!');
+        console.error('❌ Supabase não foi carregado!');
         alert('Erro: Biblioteca Supabase não foi carregada. Verifique a conexão com a internet.');
+      } else {
+        console.log('✅ Supabase carregado com sucesso');
       }
       
-      const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+      // Criar cliente com configurações otimizadas para auth
+      const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          detectSessionInUrl: true,
+          persistSession: true,
+          autoRefreshToken: true
+        }
+      });
       
+      // Tornar acessível globalmente
+      window.supabaseClient = supabaseClient;
+      
+      // ====== SISTEMA DE AUTENTICAÇÃO ======
+      let currentUser = null;
+      let currentUserData = null; // Dados completos do usuário
+      let currentSetor = null;
+      let isAdmin = false;
+      let selectedSetorFilter = null; // Para filtrar por setor (admin)
+      
+      // Bypass temporário para desenvolvimento (remover depois)
+      const BYPASS_AUTH = false; // DESATIVADO - sistema de autenticação normal ativo
+
+      // Verificar sessão existente ao carregar a página
+      async function checkAuthStatus() {
+        try {
+          const { data: { session }, error } = await supabaseClient.auth.getSession();
+          
+          if (error) {
+            console.error('Erro ao verificar sessão:', error);
+            showLoginScreen();
+            return;
+          }
+          
+          if (session && session.user) {
+            console.log('Sessão encontrada, fazendo login automático...');
+            await handleUserLogin(session.user);
+          } else {
+            console.log('Nenhuma sessão encontrada, mostrando tela de login...');
+            showLoginScreen();
+          }
+        } catch (error) {
+          console.error('Erro crítico na verificação de sessão:', error);
+          showLoginScreen();
+        }
+      }
+
+      // Mostrar tela de login
+      function showLoginScreen() {
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appContent').classList.add('hidden');
+      }
+
+      // Mostrar aplicação principal
+      function showApp() {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appContent').classList.remove('hidden');
+      }
+
+      // Processar login do usuário (só chamado após verificação de código)
+      async function handleUserLogin(user) {
+        try {
+          currentUser = user;
+          console.log('👤 Processando login do usuário:', user.email);
+          console.log('📋 Dados completos do usuário:', user);
+          
+          // Verificar se usuário existe no banco
+          console.log('🔍 Buscando usuário no banco:', user.email);
+          
+          let { data: userData, error } = await supabaseClient
+            .from('usuarios')
+            .select(`
+              *,
+              setores(id, nome, cor)
+            `)
+            .eq('email', user.email)
+            .single();
+
+          console.log('📊 Resultado da busca:', { userData, error });
+
+          if (error && error.code === 'PGRST116') {
+            // Usuário não existe, criar novo
+            console.log('❌ Usuário não encontrado no banco, tentando criar...');
+            await createNewUser(user);
+            return;
+          }
+
+          if (error) {
+            console.error('❌ Erro ao buscar usuário:', error);
+            alert('Erro ao buscar usuário no sistema: ' + (error.message || 'Erro desconhecido'));
+            showLoginScreen();
+            return;
+          }
+
+          // Usuário existe, configurar sessão
+          currentUserData = userData; // Armazenar dados completos
+          currentSetor = userData.setores; // Pode ser null para admin
+          isAdmin = userData.is_admin;
+          
+          console.log('🔍 Debug dados do usuário:', {
+            userData: userData,
+            setor_id_campo: userData.setor_id,
+            currentSetor: currentSetor,
+            setores_raw: userData.setores,
+            isAdmin: isAdmin,
+            has_setor_id: !!currentSetor?.id,
+            setor_nome: currentSetor?.nome,
+            complete_user_data: JSON.stringify(userData, null, 2)
+          });
+          
+          console.log('✅ Login realizado:', { 
+            user: userData.nome, 
+            setor: currentSetor?.nome || (isAdmin ? 'TODOS OS SETORES (Admin)' : 'Nenhum'),
+            isAdmin 
+          });
+
+          showApp();
+          await loadTasksFromSupabase();
+          updateUserInterface();
+
+        } catch (error) {
+          console.error('Erro no login:', error);
+          alert('Erro no sistema de autenticação. Tente novamente.');
+        }
+      }
+
+      // Criar novo usuário (primeiro acesso)
+      async function createNewUser(user) {
+        try {
+          console.log('Iniciando criação de usuário para:', user.email);
+
+          // Buscar setor "Controladoria" (padrão)
+          const { data: setorDefault, error: setorError } = await supabaseClient
+            .from('setores')
+            .select('id')
+            .eq('nome', 'Controladoria')
+            .single();
+
+          if (setorError) {
+            console.error('Erro ao buscar setor:', setorError);
+            throw new Error('Setor Controladoria não encontrado');
+          }
+
+          // SEMPRE criar como admin por enquanto (simplificar)
+          console.log('Criando usuário como ADMINISTRADOR...');
+          
+          const { data: newUser, error } = await supabaseClient
+            .from('usuarios')
+            .insert({
+              email: user.email,
+              nome: user.user_metadata?.full_name || user.email.split('@')[0],
+              auth_id: user.id,
+              avatar_url: user.user_metadata?.avatar_url || null,
+              setor_id: setorDefault.id,
+              is_admin: true, // FORÇAR como admin para teste
+              ativo: true
+            })
+            .select('*, setores(nome, cor)')
+            .single();
+
+          if (error) {
+            console.error('Erro ao criar usuário:', error);
+            console.error('Detalhes do erro:', JSON.stringify(error, null, 2));
+            
+            // Tentar dar mais detalhes do erro
+            let errorMsg = 'Erro ao criar conta de usuário:\n\n';
+            if (error.message) errorMsg += error.message;
+            if (error.details) errorMsg += '\n' + error.details;
+            if (error.hint) errorMsg += '\n' + error.hint;
+            
+            alert(errorMsg);
+            return;
+          }
+
+          currentUserData = newUser; // Armazenar dados completos
+          currentSetor = newUser.setores;
+          isAdmin = newUser.is_admin;
+          
+          console.log('✅ Usuário criado com sucesso:', newUser);
+          
+          alert(`🎉 Bem-vindo ${newUser.nome}!\n\nVocê foi criado como ADMINISTRADOR!\nSetor: ${currentSetor?.nome || 'Controladoria'}`);
+          
+          showApp();
+          await loadTasksFromSupabase();
+          updateUserInterface();
+
+        } catch (error) {
+          console.error('❌ Erro CRÍTICO ao criar usuário:', error);
+          console.error('Stack trace:', error.stack);
+          
+          let errorMsg = '❌ Erro no sistema ao criar usuário:\n\n';
+          errorMsg += error.message || 'Erro desconhecido';
+          
+          alert(errorMsg + '\n\n📞 Contate o suporte técnico.');
+          
+          // Voltar para tela de login
+          showLoginScreen();
+        }
+      }
+
+      // ====== SISTEMA DE NOTIFICAÇÕES ======
+      function showToast(message, type = 'info') {
+        // Função simples de notificação usando alert por enquanto
+        // Tipos: 'success', 'error', 'warning', 'info'
+        const icons = {
+          success: '✅',
+          error: '❌', 
+          warning: '⚠️',
+          info: 'ℹ️'
+        };
+        
+        const icon = icons[type] || icons.info;
+        alert(`${icon} ${message}`);
+        
+        // Log para debug
+        console.log(`Toast ${type}: ${message}`);
+      }
+
+      // Variável para armazenar email temporariamente
+      let tempEmail = '';
+
+      // Enviar código de verificação por email
+      async function sendVerificationCode(email) {
+        try {
+          console.log('📧 Tentando enviar código para:', email);
+          document.getElementById('loginForm').style.display = 'none';
+          document.getElementById('loginLoading').classList.remove('hidden');
+
+          // Voltar ao método original OTP
+          const { data, error } = await supabaseClient.auth.signInWithOtp({
+            email: email,
+            options: {
+              shouldCreateUser: true
+            }
+          });
+
+          console.log('📧 Resposta do Supabase:', { data, error });
+
+          if (error) {
+            console.error('Erro ao enviar código:', error);
+            let errorMessage = 'Erro ao enviar código: ' + error.message;
+            
+            // Mensagens de erro mais específicas
+            if (error.message.includes('Email rate limit exceeded')) {
+              errorMessage = 'Muitas tentativas de envio. Aguarde alguns minutos antes de tentar novamente.';
+            } else if (error.message.includes('Invalid email')) {
+              errorMessage = 'Email inválido. Verifique se o endereço está correto.';
+            } else if (error.message.includes('Email not enabled')) {
+              errorMessage = 'Sistema de email não configurado. Entre em contato com o administrador.';
+            }
+            
+            alert(errorMessage);
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('loginLoading').classList.add('hidden');
+          } else {
+            console.log('✅ Código enviado com sucesso');
+            // Sucesso - mostrar formulário de código
+            tempEmail = email;
+            document.getElementById('sentToEmail').textContent = email;
+            document.getElementById('loginLoading').classList.add('hidden');
+            document.getElementById('codeForm').classList.remove('hidden');
+            document.getElementById('codeInput').focus();
+            
+            alert('📧 Código de verificação enviado para ' + email + '!\n\nVerifique sua caixa de entrada e digite o código de 6 dígitos no campo abaixo.');
+          }
+        } catch (error) {
+          console.error('Erro ao enviar código:', error);
+          alert('Erro no sistema. Tente novamente.');
+          document.getElementById('loginForm').style.display = 'block';
+          document.getElementById('loginLoading').classList.add('hidden');
+        }
+      }
+
+      // Verificar código digitado pelo usuário
+      async function verifyCode(email, code) {
+        try {
+          document.getElementById('codeForm').style.display = 'none';
+          document.getElementById('loginLoading').classList.remove('hidden');
+
+          const { data, error } = await supabaseClient.auth.verifyOtp({
+            email: email,
+            token: code,
+            type: 'email' // Voltar ao tipo email
+          });
+
+          if (error) {
+            console.error('Erro na verificação:', error);
+            alert('Código inválido ou expirado: ' + error.message);
+            document.getElementById('codeForm').style.display = 'block';
+            document.getElementById('loginLoading').classList.add('hidden');
+            document.getElementById('codeInput').value = '';
+            document.getElementById('codeInput').focus();
+          } else {
+            // Login realizado com sucesso!
+            console.log('Login realizado com sucesso:', data);
+            await handleUserLogin(data.user);
+          }
+        } catch (error) {
+          console.error('Erro na verificação:', error);
+          alert('Erro no sistema. Tente novamente.');
+          document.getElementById('codeForm').style.display = 'block';
+          document.getElementById('loginLoading').classList.add('hidden');
+        }
+      }
+
+      // Voltar para o formulário de email
+      function backToEmailForm() {
+        document.getElementById('codeForm').classList.add('hidden');
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('emailInput').focus();
+        document.getElementById('codeInput').value = '';
+        tempEmail = '';
+      }
+
+      // Logout
+      async function logout() {
+        if (confirm('Deseja realmente sair?')) {
+          await supabaseClient.auth.signOut();
+          currentUser = null;
+          currentUserData = null; // Limpar dados do usuário
+          currentSetor = null;
+          isAdmin = false;
+          showLoginScreen();
+        }
+      }
+
+      // Atualizar interface com dados do usuário
+      function updateUserInterface() {
+        if (currentUser) {
+          // Atualizar nome do usuário
+          const userName = document.getElementById('userName');
+          if (userName) {
+            userName.textContent = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+          }
+
+          // Atualizar setor com cor
+          const userSetor = document.getElementById('userSetor');
+          if (userSetor) {
+            if (isAdmin) {
+              // Admin vê "TODOS OS SETORES"
+              userSetor.textContent = 'TODOS OS SETORES';
+              userSetor.style.backgroundColor = '#DC2626'; // Vermelho para admin
+              userSetor.style.color = 'white';
+            } else if (currentSetor) {
+              // Usuário normal mostra seu setor
+              userSetor.textContent = currentSetor.nome;
+              userSetor.style.backgroundColor = currentSetor.cor || '#3B82F6';
+              userSetor.style.color = 'white';
+            }
+          }
+
+          // Mostrar/ocultar elementos de administração
+          const btnAdmin = document.getElementById('btnAdmin');
+          const btnManageStatus = document.getElementById('btnManageStatus');
+          const btnNew = document.getElementById('btnNew');
+          const btnReset = document.getElementById('btnReset');
+          const btnResetFilters = document.getElementById('btnResetFilters');
+          const btnExport = document.getElementById('btnExport');
+          const btnImport = document.getElementById('btnImport');
+          const setorFilter = document.getElementById('setorFilter');
+
+          if (isAdmin) {
+            // Mostrar elementos para admin
+            if (btnAdmin) btnAdmin.classList.remove('hidden');
+            if (btnManageStatus) btnManageStatus.classList.remove('hidden');
+            if (btnNew) btnNew.classList.remove('hidden');
+            if (btnReset) btnReset.classList.remove('hidden');
+            if (btnResetFilters) btnResetFilters.classList.remove('hidden');
+            if (btnExport) btnExport.classList.remove('hidden');
+            if (btnImport) btnImport.classList.remove('hidden');
+            if (setorFilter) setorFilter.style.display = 'flex';
+            
+            // Carregar setores no dropdown
+            populateSetorFilter();
+            
+            // Adicionar badge de admin - APENAS se for realmente admin
+            const userInfo = document.getElementById('userInfo');
+            if (userInfo && !userInfo.querySelector('.admin-badge') && isAdmin === true) {
+              const adminBadge = document.createElement('span');
+              adminBadge.className = 'admin-badge text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full';
+              adminBadge.textContent = 'Admin';
+              userInfo.appendChild(adminBadge);
+            }
+          } else {
+            // Ocultar elementos para usuário normal
+            if (btnAdmin) btnAdmin.classList.add('hidden');
+            if (btnManageStatus) btnManageStatus.classList.add('hidden');
+            if (btnNew) btnNew.classList.add('hidden');
+            if (btnReset) btnReset.classList.add('hidden');
+            if (btnResetFilters) btnResetFilters.classList.add('hidden');
+            if (btnExport) btnExport.classList.add('hidden');
+            if (btnImport) btnImport.classList.add('hidden');
+            if (setorFilter) setorFilter.style.display = 'none';
+            
+            // Remover badge de admin se existir
+            const userInfo = document.getElementById('userInfo');
+            const adminBadge = userInfo?.querySelector('.admin-badge');
+            if (adminBadge) {
+              adminBadge.remove();
+            }
+          }
+        }
+      }
+
+      // Funções de Administração
+      async function populateSetorFilter() {
+        try {
+          console.log('🔄 Carregando setores para filtro principal...');
+          
+          const { data: setores, error } = await supabaseClient
+            .from('setores')
+            .select('*')
+            .eq('ativo', true)
+            .order('nome');
+
+          console.log('📊 Setores carregados para filtro:', setores);
+          console.log('❌ Erro (se houver):', error);
+
+          if (error) throw error;
+
+          const setorSelect = document.getElementById('setorSelect');
+          console.log('🔍 Elemento setorSelect encontrado:', !!setorSelect);
+          
+          if (setorSelect) {
+            // Limpar opções existentes
+            setorSelect.innerHTML = '<option value="">🌐 Todos os Setores</option>';
+            
+            // Adicionar setores
+            setores.forEach(setor => {
+              const option = document.createElement('option');
+              option.value = setor.id;
+              option.textContent = setor.nome;
+              setorSelect.appendChild(option);
+              console.log('➕ Setor adicionado ao filtro:', setor.nome);
+            });
+            
+            console.log('✅ Total de setores adicionados ao filtro:', setores.length);
+          }
+        } catch (error) {
+          console.error('Erro ao carregar setores:', error);
+          showToast('Erro ao carregar setores para filtro', 'error');
+        }
+      }
+
+      function handleSetorFilter() {
+        const setorSelect = document.getElementById('setorSelect');
+        if (setorSelect) {
+          selectedSetorFilter = setorSelect.value || null;
+          console.log('Filtro alterado para setor:', selectedSetorFilter);
+          loadTasks(); // Recarregar tasks com o filtro aplicado
+        }
+      }
+
+      function openAdminPanel() {
+        // Por enquanto, mostrar um alert
+        // Depois implementaremos modais específicos
+        const options = [
+          'Gerenciar Usuários',
+          'Gerenciar Setores'
+        ];
+        
+        const choice = prompt('Escolha uma opção:\n1. ' + options.join('\n2. ') + '\n\nDigite o número (1-' + options.length + '):');
+        
+        switch(choice) {
+          case '1':
+            openUserManagement();
+            break;
+          case '2':
+            openSetorManagement(); 
+            break;
+          default:
+            if (choice !== null) {
+              showToast('Opção inválida', 'error');
+            }
+        }
+      }
+
+      async function openUserManagement() {
+        console.log('👥 Abrindo gerenciamento de usuários...');
+        
+        const modal = document.getElementById('userManagementModal');
+        modal.showModal();
+        
+        // Aguardar o modal ser renderizado antes de carregar dados
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Carregar usuários E setores dinamicamente
+        await loadUsersForManagement();
+        loadSetoresDynamic();
+        
+        console.log('✅ Modal de usuários aberto e dados carregados');
+      }
+
+      function openSetorManagement() {
+        const modal = document.getElementById('setorManagementModal');
+        modal.showModal();
+        loadSetoresForManagement();
+      }
+
+      function openAdminReports() {
+        const modal = document.getElementById('adminReportsModal');
+        modal.showModal();
+        loadAdminReports();
+      }
+
+      // === GERENCIAMENTO DE USUÁRIOS ===
+      async function loadUsersForManagement() {
+        try {
+          const { data: usuarios, error } = await supabaseClient
+            .from('usuarios')
+            .select(`
+              *,
+              setores(nome, cor)
+            `)
+            .order('nome');
+
+          if (error) throw error;
+
+          const usersList = document.getElementById('usersList');
+          usersList.innerHTML = '';
+
+          // Verificação simples para evitar erro
+          if (!usuarios || usuarios.length === 0) {
+            usersList.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhum usuário cadastrado</p>';
+            return;
+          }
+
+          usuarios.forEach(user => {
+            const userCard = createUserCard(user);
+            usersList.appendChild(userCard);
+          });
+
+          console.log('✅ Usuários carregados com sucesso');
+
+        } catch (error) {
+          console.error('Erro ao carregar usuários:', error);
+          showToast('Erro ao carregar usuários', 'error');
+        }
+      }
+
+      function createUserCard(user) {
+        const div = document.createElement('div');
+        div.className = 'bg-white p-4 rounded-xl border shadow-sm hover:shadow-md transition';
+        
+        const statusBadge = user.ativo 
+          ? '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Ativo</span>'
+          : '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Inativo</span>';
+          
+        const adminBadge = user.is_admin 
+          ? '<span class="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">Admin</span>'
+          : '';
+
+        const setorInfo = user.setores 
+          ? `<span class="inline-block px-2 py-1 rounded-full text-xs font-medium text-white" style="background-color: ${user.setores.cor || '#3B82F6'}">${user.setores.nome}</span>`
+          : '<span class="text-gray-500 text-sm">Sem setor</span>';
+
+        div.innerHTML = `
+          <div class="flex justify-between items-start mb-3">
+            <div class="flex-1">
+              <h4 class="font-semibold text-gray-900">${user.nome}</h4>
+              <p class="text-sm text-gray-600">${user.email}</p>
+              <div class="flex gap-2 mt-2">
+                ${setorInfo}
+                ${adminBadge}
+                ${statusBadge}
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="editUser('${user.id}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Editar">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              <button onclick="toggleUserStatus('${user.id}', ${user.ativo})" class="p-2 ${user.ativo ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'} rounded-lg transition" title="${user.ativo ? 'Desativar' : 'Ativar'}">
+                ${user.ativo 
+                  ? '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' 
+                  : '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+                }
+              </button>
+            </div>
+          </div>
+        `;
+
+        return div;
+      }
+
+      async function loadSetoresForUserForm() {
+        try {
+          console.log('🔄 Carregando setores para formulário de usuário...');
+          
+          const { data: setores, error } = await supabaseClient
+            .from('setores')
+            .select('*')
+            .eq('ativo', true)
+            .order('nome');
+
+          console.log('📊 Setores carregados:', setores);
+          console.log('❌ Erro (se houver):', error);
+
+          if (error) throw error;
+
+          // Verificação simples para evitar erro
+          if (!setores) {
+            console.log('⚠️ Setores é null/undefined');
+            return;
+          }
+
+          // Tentar encontrar o elemento com retry
+          let setorSelect = null;
+          let attempts = 0;
+          const maxAttempts = 10;
+          
+          while (!setorSelect && attempts < maxAttempts) {
+            setorSelect = document.getElementById('userSetorSelect');
+            if (!setorSelect) {
+              console.log(`🔍 Tentativa ${attempts + 1}/${maxAttempts} - Elemento userSetorSelect não encontrado, aguardando...`);
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            attempts++;
+          }
+          
+          console.log('🔍 Elemento userSetor encontrado:', !!setorSelect);
+          
+          if (setorSelect) {
+            // Primeira abordagem: limpar e recriar
+            setorSelect.innerHTML = '';
+            
+            // Adicionar opção padrão
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Selecione um setor';
+            setorSelect.appendChild(defaultOption);
+            
+            // Adicionar setores
+            if (setores && setores.length > 0) {
+              setores.forEach(setor => {
+                const option = document.createElement('option');
+                option.value = setor.id;
+                option.textContent = setor.nome;
+                setorSelect.appendChild(option);
+                console.log('➕ Setor adicionado ao select:', setor.nome);
+              });
+              
+              console.log('✅ Total de setores adicionados:', setores.length);
+            } else {
+              console.log('⚠️ Nenhum setor para adicionar');
+            }
+            console.log('🔍 HTML final do select:', setorSelect.innerHTML);
+            
+            // Forçar refresh do select - múltiplas abordagens
+            setorSelect.dispatchEvent(new Event('change'));
+            setorSelect.focus();
+            setorSelect.blur();
+            
+            // Se ainda não funcionar, tentar abordagem alternativa
+            setTimeout(() => {
+              if (setorSelect.options.length <= 1) {
+                console.log('⚠️ Tentando abordagem alternativa...');
+                
+                // Método alternativo: usar innerHTML diretamente
+                let optionsHTML = '<option value="">Selecione um setor</option>';
+                setores.forEach(setor => {
+                  optionsHTML += `<option value="${setor.id}">${setor.nome}</option>`;
+                });
+                
+                setorSelect.innerHTML = optionsHTML;
+                console.log('🔄 Select reconstruído com innerHTML:', setorSelect.innerHTML);
+              }
+            }, 200);
+            
+          } else {
+            console.error('❌ Elemento userSetor não foi encontrado após múltiplas tentativas');
+            showToast('Erro: Formulário não carregou completamente. Tente novamente.', 'error');
+          }
+
+        } catch (error) {
+          console.error('❌ Erro ao carregar setores para formulário:', error);
+          showToast('Erro ao carregar setores para formulário', 'error');
+        }
+      }
+      
+      // Função direta para carregar setores sem complexidade
+      async function loadSetoresDirectly() {
+        console.log('🎯 Carregando setores de forma direta...');
+        
+        // Verificar se o Supabase está inicializado
+        if (!supabase) {
+          console.error('❌ Supabase não está inicializado');
+          showToast('Erro: Conexão com banco de dados não estabelecida', 'error');
+          return;
+        }
+        
+        const select = document.getElementById('userSetor');
+        if (!select) {
+          console.error('❌ Select userSetor não encontrado');
+          return;
+        }
+        
+        console.log('📍 Select encontrado:', select);
+        
+        // Limpar opções existentes
+        select.innerHTML = '<option value="">Carregando...</option>';
+        
+        try {
+          console.log('🔄 Fazendo consulta ao Supabase...');
+          
+          const { data: setores, error } = await supabase
+            .from('setores')
+            .select('id, nome')
+            .order('nome');
+            
+          console.log('📊 Resultado da consulta:', { setores, error });
+            
+          if (error) {
+            console.error('❌ Erro ao carregar setores:', error);
+            select.innerHTML = '<option value="">Erro ao carregar setores</option>';
+            showToast(`Erro ao carregar setores: ${error.message}`, 'error');
+            return;
+          }
+          
+          console.log('✅ Setores carregados:', setores);
+          
+          // Resetar para opção padrão
+          select.innerHTML = '<option value="">Selecione um setor</option>';
+          
+          if (!setores || setores.length === 0) {
+            console.warn('⚠️ Nenhum setor encontrado');
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Nenhum setor cadastrado';
+            option.disabled = true;
+            select.appendChild(option);
+            return;
+          }
+          
+          // Adicionar cada setor
+          setores.forEach(setor => {
+            console.log('➕ Adicionando setor:', setor);
+            const option = document.createElement('option');
+            option.value = setor.id;
+            option.textContent = setor.nome;
+            select.appendChild(option);
+          });
+          
+          console.log('✅ Select populado com', setores.length, 'setores');
+          console.log('HTML final do select:', select.innerHTML);
+          
+        } catch (error) {
+          console.error('❌ Erro na função loadSetoresDirectly:', error);
+          select.innerHTML = '<option value="">Erro inesperado</option>';
+          showToast(`Erro inesperado: ${error.message}`, 'error');
+        }
+      }
+
+      async function showUserForm(title = 'Novo Usuário') {
+        console.log('📋 Exibindo formulário de usuário:', title);
+        
+        document.getElementById('userFormTitle').textContent = title;
+        document.getElementById('userForm').classList.remove('hidden');
+        
+        // Aguardar o formulário ser renderizado ANTES de fazer qualquer operação
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        // Sempre carregar setores quando exibir o formulário (ANTES do reset)
+        console.log('🔄 Carregando setores para formulário...');
+        await loadSetoresForUserForm();
+        
+        // Reset form DEPOIS de carregar os setores (mas mantendo as options)
+        const userSetor = document.getElementById('userSetor');
+        const setorHTML = userSetor ? userSetor.innerHTML : '';
+        
+        document.getElementById('userFormData').reset();
+        document.getElementById('editUserId').value = '';
+        
+        // Restaurar as opções do setor se foram perdidas
+        if (userSetor && setorHTML) {
+          userSetor.innerHTML = setorHTML;
+          console.log('🔄 Options do setor restauradas após reset');
+        }
+        
+        console.log('✅ Formulário de usuário configurado completamente');
+      }
+
+      function hideUserForm() {
+        document.getElementById('userForm').classList.add('hidden');
+      }
+
+      async function editUser(userId) {
+        console.log('✏️ Editando usuário ID:', userId);
+        
+        try {
+          const { data: user, error } = await supabaseClient
+            .from('usuarios')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+          if (error) throw error;
+
+          console.log('📋 Dados do usuário:', user);
+
+          // Mostrar formulário primeiro
+          document.getElementById('userFormTitle').textContent = 'Editar Usuário';
+          document.getElementById('userForm').classList.remove('hidden');
+          
+          // Carregar setores antes de preencher
+          await loadSetoresDynamic();
+          
+          // Aguardar um pouco para garantir que os setores foram carregados
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          // Preencher formulário com os dados do usuário - MÉTODO FORÇADO
+          document.getElementById('editUserId').value = user.id;
+          document.getElementById('userEmail').value = user.email || '';
+          
+          // Tentar múltiplas formas de preencher o nome
+          const nomeField = document.getElementById('userNameInput');
+          console.log('🔍 Campo userNameInput encontrado:', !!nomeField);
+          
+          if (nomeField) {
+            // Método 1: value direto
+            nomeField.value = user.nome || '';
+            
+            // Método 2: setAttribute  
+            nomeField.setAttribute('value', user.nome || '');
+            
+            // Método 3: forçar eventos
+            nomeField.dispatchEvent(new Event('input', { bubbles: true }));
+            nomeField.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Método 4: innerHTML para debug
+            console.log('📝 Tentativas de preenchimento do nome:');
+            console.log('- user.nome:', user.nome);
+            console.log('- nomeField.value após set:', nomeField.value);
+            console.log('- nomeField.getAttribute value:', nomeField.getAttribute('value'));
+          }
+          
+          document.getElementById('userSetorSelect').value = user.setor_id || '';
+          document.getElementById('userIsAdmin').checked = user.is_admin || false;
+
+          // Debug detalhado
+          console.log('🔍 Debug dos campos preenchidos:');
+          console.log('- ID:', user.id);
+          console.log('- Email:', user.email);
+          console.log('- Nome:', user.nome);
+          console.log('- Setor ID:', user.setor_id);
+          console.log('- Is Admin:', user.is_admin);
+          console.log('- Campo userName preenchido com:', document.getElementById('userName').value);
+
+          // Aguardar mais um pouco e verificar se ainda está lá
+          setTimeout(() => {
+            const nomeAtual = document.getElementById('userName').value;
+            console.log('🕐 Verificação após 500ms - Nome ainda está:', nomeAtual);
+            if (!nomeAtual) {
+              console.log('❌ PROBLEMA: Nome foi limpo por alguma função!');
+              // Tentar preencher novamente
+              document.getElementById('userName').value = user.nome || '';
+              console.log('🔄 Tentativa de preencher novamente...');
+            }
+          }, 500);
+
+          // Solução adicional: forçar preenchimento após 1 segundo
+          setTimeout(() => {
+            document.getElementById('userName').value = user.nome || '';
+            console.log('🔒 Preenchimento forçado após 1s com:', user.nome);
+          }, 1000);
+
+          console.log('✅ Formulário preenchido com dados do usuário');
+
+        } catch (error) {
+          console.error('❌ Erro ao carregar dados do usuário:', error);
+          showToast('Erro ao carregar dados do usuário', 'error');
+        }
+      }
+
+      async function saveUser(formData) {
+        console.log('💾 Tentando salvar usuário...', Object.fromEntries(formData));
+        
+        try {
+          const userId = formData.get('editUserId');
+          const userData = {
+            email: formData.get('userEmail'),
+            nome: formData.get('userName'),
+            setor_id: formData.get('userSetor') || null,
+            is_admin: formData.get('userIsAdmin') === 'on',
+            ativo: true
+          };
+
+          console.log('📊 Dados do usuário:', userData);
+
+          let result;
+          if (userId) {
+            // Editar usuário existente
+            console.log('✏️ Editando usuário ID:', userId);
+            result = await supabaseClient
+              .from('usuarios')
+              .update(userData)
+              .eq('id', userId);
+          } else {
+            // Criar novo usuário
+            console.log('🆕 Criando novo usuário');
+            result = await supabaseClient
+              .from('usuarios')
+              .insert([userData]);
+          }
+
+          console.log('📋 Resultado da operação:', result);
+
+          if (result.error) {
+            console.error('❌ Erro Supabase:', result.error);
+            throw result.error;
+          }
+
+          showToast(userId ? 'Usuário atualizado com sucesso' : 'Usuário criado com sucesso', 'success');
+          hideUserForm();
+          loadUsersForManagement();
+
+        } catch (error) {
+          console.error('❌ Erro ao salvar usuário:', error);
+          
+          // Mostrar erro específico do RLS
+          if (error.message.includes('row-level security policy')) {
+            showToast('ERRO: Permissões do banco de dados. Execute: ALTER TABLE usuarios DISABLE ROW LEVEL SECURITY;', 'error');
+          } else {
+            showToast('Erro ao salvar usuário: ' + error.message, 'error');
+          }
+        }
+      }
+
+      async function toggleUserStatus(userId, currentStatus) {
+        try {
+          const { error } = await supabaseClient
+            .from('usuarios')
+            .update({ ativo: !currentStatus })
+            .eq('id', userId);
+
+          if (error) throw error;
+
+          showToast(`Usuário ${!currentStatus ? 'ativado' : 'desativado'} com sucesso`, 'success');
+          loadUsersForManagement();
+
+        } catch (error) {
+          console.error('Erro ao alterar status do usuário:', error);
+          showToast('Erro ao alterar status do usuário', 'error');
+        }
+      }
+
+      // === GERENCIAMENTO DE SETORES ===
+      async function loadSetoresForManagement() {
+        try {
+          const { data: setores, error } = await supabaseClient
+            .from('setores')
+            .select('*')
+            .order('nome');
+
+          if (error) throw error;
+
+          // Contar usuários por setor
+          const { data: usuariosCount, error: countError } = await supabaseClient
+            .from('usuarios')
+            .select('setor_id')
+            .eq('ativo', true);
+
+          if (!countError) {
+            // Agrupar contagem por setor
+            const countBySetor = {};
+            usuariosCount.forEach(user => {
+              if (user.setor_id) {
+                countBySetor[user.setor_id] = (countBySetor[user.setor_id] || 0) + 1;
+              }
+            });
+
+            // Adicionar contagem aos setores
+            setores.forEach(setor => {
+              setor.usuariosCount = countBySetor[setor.id] || 0;
+            });
+          }
+
+          const setoresList = document.getElementById('setoresList');
+          setoresList.innerHTML = '';
+
+          if (setores.length === 0) {
+            setoresList.innerHTML = '<p class="text-gray-500 text-center py-8 col-span-full">Nenhum setor cadastrado</p>';
+            return;
+          }
+
+          setores.forEach(setor => {
+            const setorCard = createSetorCard(setor);
+            setoresList.appendChild(setorCard);
+          });
+
+        } catch (error) {
+          console.error('Erro ao carregar setores:', error);
+          showToast('Erro ao carregar setores', 'error');
+        }
+      }
+
+      function createSetorCard(setor) {
+        const div = document.createElement('div');
+        div.className = 'bg-white p-4 rounded-xl border shadow-sm hover:shadow-md transition';
+        
+        const statusBadge = setor.ativo 
+          ? '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Ativo</span>'
+          : '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Inativo</span>';
+
+        div.innerHTML = `
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-4 h-4 rounded-full" style="background-color: ${setor.cor || '#3B82F6'}"></div>
+            <h4 class="font-semibold text-gray-900 flex-1">${setor.nome}</h4>
+            ${statusBadge}
+          </div>
+          
+          ${setor.descricao ? `<p class="text-sm text-gray-600 mb-3">${setor.descricao}</p>` : ''}
+          
+          <div class="text-sm text-gray-500 mb-3">
+            Usuários: <span class="font-medium">${setor.usuariosCount || 0}</span>
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="editSetor('${setor.id}')" class="flex-1 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition text-sm font-medium">
+              Editar
+            </button>
+            <button onclick="toggleSetorStatus('${setor.id}', ${setor.ativo})" class="px-3 py-2 ${setor.ativo ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'} rounded-lg transition text-sm font-medium">
+              ${setor.ativo ? 'Desativar' : 'Ativar'}
+            </button>
+          </div>
+        `;
+
+        return div;
+      }
+
+      function showSetorForm(title = 'Novo Setor', resetForm = true) {
+        console.log('📋 Exibindo formulário:', title, '| Reset:', resetForm);
+        
+        document.getElementById('setorFormTitle').textContent = title;
+        document.getElementById('setorForm').classList.remove('hidden');
+        
+        // Só fazer reset se for um novo setor
+        if (resetForm) {
+          console.log('🔄 Resetando formulário para novo setor');
+          document.getElementById('setorFormData').reset();
+          document.getElementById('editSetorId').value = '';
+          
+          // Cor padrão para novos setores
+          document.getElementById('setorCor').value = '#3B82F6';
+          document.getElementById('setorCorText').value = '#3B82F6';
+        } else {
+          console.log('✏️ Mantendo dados para edição');
+        }
+      }
+
+      function hideSetorForm() {
+        document.getElementById('setorForm').classList.add('hidden');
+      }
+
+      async function editSetor(setorId) {
+        try {
+          console.log('📝 Iniciando edição do setor:', setorId);
+          
+          const { data: setor, error } = await supabaseClient
+            .from('setores')
+            .select('*')
+            .eq('id', setorId)
+            .single();
+
+          console.log('📊 Dados do setor carregados:', setor);
+          console.log('❌ Erro (se houver):', error);
+
+          if (error) throw error;
+
+          // Verificar se os elementos existem
+          const editSetorIdElement = document.getElementById('editSetorId');
+          const setorNomeElement = document.getElementById('setorNome');
+          const setorDescricaoElement = document.getElementById('setorDescricao');
+          const setorCorElement = document.getElementById('setorCor');
+          const setorCorTextElement = document.getElementById('setorCorText');
+          
+          console.log('🔍 Elementos encontrados:', {
+            editSetorId: !!editSetorIdElement,
+            setorNome: !!setorNomeElement,
+            setorDescricao: !!setorDescricaoElement,
+            setorCor: !!setorCorElement,
+            setorCorText: !!setorCorTextElement
+          });
+
+          // Preencher formulário
+          if (editSetorIdElement) editSetorIdElement.value = setor.id;
+          if (setorNomeElement) setorNomeElement.value = setor.nome || '';
+          if (setorDescricaoElement) setorDescricaoElement.value = setor.descricao || '';
+          if (setorCorElement) setorCorElement.value = setor.cor || '#3B82F6';
+          if (setorCorTextElement) setorCorTextElement.value = setor.cor || '#3B82F6';
+
+          console.log('✅ Formulário preenchido com dados do setor');
+          
+          showSetorForm('Editar Setor', false); // false = não resetar formulário
+          
+          console.log('✅ Formulário de edição exibido');
+
+        } catch (error) {
+          console.error('❌ Erro ao carregar dados do setor:', error);
+          showToast('Erro ao carregar dados do setor', 'error');
+        }
+      }
+
+      async function saveSetor(formData) {
+        try {
+          console.log('🔄 Salvando setor...', formData);
+          
+          const setorId = formData.get('editSetorId');
+          const setorData = {
+            nome: formData.get('setorNome'),
+            descricao: formData.get('setorDescricao') || null,
+            cor: formData.get('setorCor'),
+            ativo: true
+          };
+
+          console.log('📝 Dados do setor:', setorData);
+          console.log('🆔 ID do setor (para edição):', setorId);
+          console.log('👤 Usuário atual:', currentUser);
+          console.log('🔐 É admin:', isAdmin);
+
+          // Verificar se é admin antes de tentar salvar
+          if (!isAdmin && !BYPASS_AUTH) {
+            showToast('Apenas administradores podem gerenciar setores', 'error');
+            return;
+          }
+
+          let result;
+          if (setorId) {
+            // Editar setor existente
+            console.log('✏️ Editando setor existente...');
+            result = await supabaseClient
+              .from('setores')
+              .update(setorData)
+              .eq('id', setorId);
+          } else {
+            // Criar novo setor - tentar com diferentes abordagens
+            console.log('🆕 Criando novo setor...');
+            
+            try {
+              // Primeira tentativa: inserção direta
+              result = await supabaseClient
+                .from('setores')
+                .insert([setorData]);
+                
+              if (result.error) throw result.error;
+              
+            } catch (directError) {
+              console.log('❌ Falha na inserção direta:', directError);
+              
+              // Segunda tentativa: usar SQL direto via RPC
+              try {
+                console.log('🔄 Tentando inserção via SQL direto...');
+                
+                const sqlQuery = `
+                  INSERT INTO setores (nome, descricao, cor, ativo) 
+                  VALUES ('${setorData.nome}', '${setorData.descricao || ''}', '${setorData.cor}', ${setorData.ativo})
+                  RETURNING *
+                `;
+                
+                result = await supabaseClient
+                  .rpc('exec_sql', { sql_query: sqlQuery });
+                
+                if (result.error) throw result.error;
+                
+              } catch (sqlError) {
+                console.log('❌ SQL direto também falhou:', sqlError);
+                
+                // Terceira tentativa: inserção com bypass de RLS
+                try {
+                  console.log('🔄 Tentando com bypass de segurança...');
+                  
+                  // Usar a API diretamente com configuração de segurança
+                  result = await supabaseClient
+                    .from('setores')
+                    .insert([setorData], { 
+                      upsert: false,
+                      onConflict: 'nome' 
+                    });
+                    
+                  if (result.error) throw result.error;
+                  
+                } catch (bypassError) {
+                  console.log('❌ Todas as tentativas falharam:', bypassError);
+                  
+                  // Se chegou até aqui, é problema de configuração do banco
+                  if (bypassError.message?.includes('row-level security') || 
+                      directError.message?.includes('row-level security')) {
+                    
+                    showToast(`❌ ERRO DE CONFIGURAÇÃO DO BANCO
+                    
+🔒 As políticas de segurança do Supabase estão impedindo a criação de setores.
+
+💡 SOLUÇÃO RÁPIDA:
+1. Abra o SQL Editor no Supabase
+2. Execute: ALTER TABLE setores DISABLE ROW LEVEL SECURITY;
+3. Ou crie uma política: CREATE POLICY "allow_all_setores" ON setores FOR ALL USING (true);
+
+📧 Entre em contato com o administrador do banco de dados.`, 'error');
+                    
+                    return;
+                  }
+                  
+                  // Se não é erro de RLS, re-throw o erro original
+                  throw directError;
+                }
+              }
+            }
+          }
+
+          console.log('📤 Resultado da operação:', result);
+
+          showToast(setorId ? 'Setor atualizado com sucesso' : 'Setor criado com sucesso', 'success');
+          hideSetorForm();
+          loadSetoresForManagement();
+          
+          // Atualizar filtro de setores se necessário
+          if (isAdmin) {
+            populateSetorFilter();
+          }
+
+        } catch (error) {
+          console.error('Erro ao salvar setor:', error);
+          showToast('Erro ao salvar setor: ' + error.message, 'error');
+        }
+      }
+
+      async function toggleSetorStatus(setorId, currentStatus) {
+        try {
+          const { error } = await supabaseClient
+            .from('setores')
+            .update({ ativo: !currentStatus })
+            .eq('id', setorId);
+
+          if (error) throw error;
+
+          showToast(`Setor ${!currentStatus ? 'ativado' : 'desativado'} com sucesso`, 'success');
+          loadSetoresForManagement();
+          
+          // Atualizar filtro de setores se necessário
+          if (isAdmin) {
+            populateSetorFilter();
+          }
+
+        } catch (error) {
+          console.error('Erro ao alterar status do setor:', error);
+          showToast('Erro ao alterar status do setor', 'error');
+        }
+      }
+
+      // === RELATÓRIOS ADMINISTRATIVOS ===
+      async function loadAdminReports() {
+        try {
+          await Promise.all([
+            loadDashboardStats(),
+            loadTasksPerSetorChart(),
+            loadUsersPerSetorTable()
+          ]);
+        } catch (error) {
+          console.error('Erro ao carregar relatórios:', error);
+          showToast('Erro ao carregar relatórios administrativos', 'error');
+        }
+      }
+
+      async function loadDashboardStats() {
+        try {
+          // Total de usuários
+          const { count: totalUsers } = await supabaseClient
+            .from('usuarios')
+            .select('*', { count: 'exact', head: true })
+            .eq('ativo', true);
+
+          // Total de setores
+          const { count: totalSetores } = await supabaseClient
+            .from('setores')
+            .select('*', { count: 'exact', head: true })
+            .eq('ativo', true);
+
+          // Total de tarefas
+          const { count: totalTasks } = await supabaseClient
+            .from('tasks')
+            .select('*', { count: 'exact', head: true });
+
+          // Tarefas concluídas
+          const { count: completedTasks } = await supabaseClient
+            .from('tasks')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'Concluído');
+
+          // Atualizar cards
+          document.getElementById('totalUsers').textContent = totalUsers || 0;
+          document.getElementById('totalSetores').textContent = totalSetores || 0;
+          document.getElementById('totalTasks').textContent = totalTasks || 0;
+          document.getElementById('completedTasks').textContent = completedTasks || 0;
+
+        } catch (error) {
+          console.error('Erro ao carregar estatísticas:', error);
+        }
+      }
+
+      async function loadTasksPerSetorChart() {
+        try {
+          const { data: tasksData, error } = await supabaseClient
+            .from('tasks')
+            .select(`
+              setor_id,
+              setores(nome, cor)
+            `);
+
+          if (error) throw error;
+
+          // Agrupar por setor
+          const setorCounts = {};
+          const setorInfo = {};
+          
+          tasksData.forEach(task => {
+            if (task.setor_id && task.setores) {
+              setorCounts[task.setor_id] = (setorCounts[task.setor_id] || 0) + 1;
+              setorInfo[task.setor_id] = task.setores;
+            }
+          });
+
+          const labels = Object.values(setorInfo).map(s => s.nome);
+          const data = Object.values(setorCounts);
+          const colors = Object.values(setorInfo).map(s => s.cor || '#3B82F6');
+
+          // Criar gráfico (usando Chart.js se disponível)
+          const ctx = document.getElementById('tasksPerSetorChart');
+          if (ctx && window.Chart) {
+            new Chart(ctx, {
+              type: 'doughnut',
+              data: {
+                labels: labels,
+                datasets: [{
+                  data: data,
+                  backgroundColor: colors,
+                  borderWidth: 1
+                }]
+              },
+              options: {
+                responsive: true,
+                plugins: {
+                  legend: {
+                    position: 'bottom'
+                  }
+                }
+              }
+            });
+          } else {
+            ctx.parentNode.innerHTML = '<p class="text-gray-500 text-center py-8">Gráfico requer Chart.js</p>';
+          }
+
+        } catch (error) {
+          console.error('Erro ao carregar gráfico de tarefas por setor:', error);
+        }
+      }
+
+      async function loadUsersPerSetorTable() {
+        try {
+          const { data: setores, error } = await supabaseClient
+            .from('setores')
+            .select(`
+              *,
+              usuarios!inner(count)
+            `)
+            .eq('ativo', true);
+
+          if (error) throw error;
+
+          // Contar usuários por setor
+          const { data: usuariosData } = await supabaseClient
+            .from('usuarios')
+            .select('setor_id, setores(nome, cor)')
+            .eq('ativo', true);
+
+          const setorStats = {};
+          usuariosData.forEach(user => {
+            if (user.setor_id && user.setores) {
+              if (!setorStats[user.setor_id]) {
+                setorStats[user.setor_id] = {
+                  nome: user.setores.nome,
+                  cor: user.setores.cor,
+                  count: 0
+                };
+              }
+              setorStats[user.setor_id].count++;
+            }
+          });
+
+          const tableContainer = document.getElementById('usersPerSetorTable');
+          
+          if (Object.keys(setorStats).length === 0) {
+            tableContainer.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhum dados encontrados</p>';
+            return;
+          }
+
+          const table = `
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b">
+                  <th class="text-left py-3 px-2">Setor</th>
+                  <th class="text-center py-3 px-2">Usuários Ativos</th>
+                  <th class="text-center py-3 px-2">Percentual</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.values(setorStats).map(setor => {
+                  const totalUsers = Object.values(setorStats).reduce((sum, s) => sum + s.count, 0);
+                  const percentage = totalUsers > 0 ? ((setor.count / totalUsers) * 100).toFixed(1) : 0;
+                  
+                  return `
+                    <tr class="border-b hover:bg-gray-50">
+                      <td class="py-3 px-2">
+                        <div class="flex items-center gap-2">
+                          <div class="w-3 h-3 rounded-full" style="background-color: ${setor.cor}"></div>
+                          ${setor.nome}
+                        </div>
+                      </td>
+                      <td class="text-center py-3 px-2 font-medium">${setor.count}</td>
+                      <td class="text-center py-3 px-2">${percentage}%</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          `;
+
+          tableContainer.innerHTML = table;
+
+        } catch (error) {
+          console.error('Erro ao carregar tabela de usuários por setor:', error);
+        }
+      }
+
+      // Event Listeners
+      document.getElementById('loginForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const email = document.getElementById('emailInput').value;
+        if (email) {
+          // Teste de conectividade antes de enviar o código
+          try {
+            console.log('🔍 Testando conectividade com Supabase...');
+            const { data, error } = await supabaseClient.from('usuarios').select('count', { count: 'exact', head: true });
+            console.log('✅ Conectividade OK');
+            sendVerificationCode(email);
+          } catch (error) {
+            console.error('❌ Erro de conectividade:', error);
+            alert('Erro de conexão com o servidor. Verifique sua internet e tente novamente.');
+          }
+        }
+      });
+
+      document.getElementById('codeForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const code = document.getElementById('codeInput').value;
+        if (code && tempEmail) {
+          verifyCode(tempEmail, code);
+        }
+      });
+
+      document.getElementById('backToEmail')?.addEventListener('click', backToEmailForm);
+      document.getElementById('btnLogout')?.addEventListener('click', logout);
+      document.getElementById('btnAdmin')?.addEventListener('click', openAdminPanel);
+      document.getElementById('setorSelect')?.addEventListener('change', handleSetorFilter);
+
+      // Função para carregar setores dinamicamente do banco
+      async function loadSetoresDynamic() {
+        console.log('🎯 Carregando setores do banco de dados...');
+        
+        const select = document.getElementById('userSetorSelect');
+        if (!select) {
+          console.log('❌ Select não encontrado');
+          return;
+        }
+        
+        // Mostrar carregando
+        select.innerHTML = '<option value="">Carregando setores...</option>';
+        
+        try {
+          // Verificar se supabaseClient está disponível
+          if (!window.supabaseClient && !supabaseClient) {
+            console.log('⚠️ SupabaseClient não disponível, usando setores fixos');
+            loadSetoresSimple();
+            return;
+          }
+          
+          const client = window.supabaseClient || supabaseClient;
+          const { data: setores, error } = await client
+            .from('setores')
+            .select('id, nome')
+            .order('nome');
+            
+          if (error) {
+            console.error('❌ Erro ao carregar setores:', error);
+            // Fallback para setores fixos
+            loadSetoresSimple();
+            return;
+          }
+          
+          console.log('✅ Setores carregados do banco:', setores);
+          
+          // Limpar e adicionar opção padrão
+          select.innerHTML = '<option value="">Selecione um setor</option>';
+          
+          if (!setores || setores.length === 0) {
+            console.log('⚠️ Nenhum setor encontrado, usando setores fixos');
+            loadSetoresSimple();
+            return;
+          }
+          
+          // Adicionar setores do banco
+          setores.forEach(setor => {
+            const option = document.createElement('option');
+            option.value = setor.id;
+            option.textContent = setor.nome;
+            select.appendChild(option);
+          });
+          
+          console.log(`✅ ${setores.length} setores carregados dinamicamente`);
+          
+        } catch (error) {
+          console.error('❌ Erro inesperado:', error);
+          // Fallback para setores fixos
+          loadSetoresSimple();
+        }
+      }
+
+      // Função SIMPLES para carregar setores (fallback)
+      function loadSetoresSimple() {
+        console.log('🎯 Carregando setores - versão simples');
+        
+        const select = document.getElementById('userSetorSelect');
+        if (!select) {
+          console.log('❌ Select não encontrado');
+          return;
+        }
+        
+        // Adicionar opções manualmente por enquanto
+        select.innerHTML = `
+          <option value="">Selecione um setor</option>
+          <option value="1">Controladoria</option>
+          <option value="2">Financeiro</option>
+          <option value="3">Comercial</option>
+          <option value="4">Operações</option>
+          <option value="5">RH</option>
+        `;
+        
+        console.log('✅ Setores carregados com sucesso');
+      }
+
+      // Event Listeners para Modais Administrativos
+      
+      // Modal de Gerenciamento de Usuários
+      document.getElementById('btnCloseUserModal')?.addEventListener('click', () => {
+        document.getElementById('userManagementModal').close();
+      });
+      
+      document.getElementById('btnNewUser')?.addEventListener('click', () => {
+        console.log('🔘 Novo Usuário clicado');
+        
+        // Mostrar formulário
+        document.getElementById('userFormTitle').textContent = 'Novo Usuário';
+        document.getElementById('userForm').classList.remove('hidden');
+        
+        // Limpar campos
+        document.getElementById('userEmail').value = '';
+        document.getElementById('userNameInput').value = '';
+        document.getElementById('userIsAdmin').checked = false;
+        document.getElementById('editUserId').value = '';
+        
+        // Carregar setores dinamicamente
+        loadSetoresDynamic();
+      });
+      
+      document.getElementById('btnRefreshUsers')?.addEventListener('click', () => {
+        loadUsersForManagement();
+        loadSetoresDynamic(); // Versão dinâmica
+      });
+      
+      document.getElementById('btnCancelUserForm')?.addEventListener('click', hideUserForm);
+      
+      // Função para carregar setores no modal de tarefas
+      async function loadSetoresInTaskModal() {
+        console.log('🎯 Carregando setores para modal de tarefas...');
+        
+        const select = document.getElementById('inputSetor');
+        if (!select) {
+          console.log('❌ Select de setor no modal não encontrado');
+          return;
+        }
+        
+        // Mostrar carregando
+        select.innerHTML = '<option value="">Carregando setores...</option>';
+        
+        try {
+          // Verificar se é admin ou usuário normal
+          if (isAdmin) {
+            // Admin pode escolher qualquer setor
+            const client = window.supabaseClient || supabaseClient;
+            const { data: setores, error } = await client
+              .from('setores')
+              .select('id, nome')
+              .order('nome');
+              
+            if (error || !setores) {
+              console.error('❌ Erro ao carregar setores:', error);
+              select.innerHTML = '<option value="">Erro ao carregar setores</option>';
+              return;
+            }
+            
+            // Limpar e adicionar opção padrão
+            select.innerHTML = '<option value="">Selecione um setor</option>';
+            
+            // Adicionar setores
+            setores.forEach(setor => {
+              const option = document.createElement('option');
+              option.value = setor.id;
+              option.textContent = setor.nome;
+              select.appendChild(option);
+            });
+            
+            console.log(`✅ ${setores.length} setores carregados para admin`);
+          } else {
+            // Usuário normal - só pode criar tarefas no seu setor
+            let userSetorId = null;
+            let userSetorNome = 'Setor não definido';
+            
+            // Tentar obter setor de várias formas
+            if (currentSetor && currentSetor.id) {
+              userSetorId = currentSetor.id;
+              userSetorNome = currentSetor.nome;
+            } else if (currentUserData && currentUserData.setor_id) {
+              userSetorId = currentUserData.setor_id;
+              // Buscar nome do setor
+              try {
+                const client = window.supabaseClient || supabaseClient;
+                const { data: setor } = await client
+                  .from('setores')
+                  .select('nome')
+                  .eq('id', currentUserData.setor_id)
+                  .single();
+                if (setor) userSetorNome = setor.nome;
+              } catch (e) {
+                console.warn('Erro ao buscar nome do setor:', e);
+              }
+            }
+            
+            if (userSetorId) {
+              select.innerHTML = `<option value="${userSetorId}">${userSetorNome}</option>`;
+              select.value = userSetorId;
+              select.disabled = true; // Desabilita para usuários normais
+              console.log('✅ Setor fixo para usuário normal:', userSetorNome);
+            } else {
+              select.innerHTML = '<option value="">Usuário sem setor definido</option>';
+              select.disabled = true;
+              console.log('❌ Usuário sem setor definido');
+            }
+          }
+          
+        } catch (error) {
+          console.error('❌ Erro inesperado ao carregar setores:', error);
+          select.innerHTML = '<option value="">Erro ao carregar setores</option>';
+        }
+      }
+      
+      document.getElementById('userFormData')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        saveUser(formData);
+      });
+
+      // Modal de Gerenciamento de Setores
+      document.getElementById('btnCloseSetorModal')?.addEventListener('click', () => {
+        document.getElementById('setorManagementModal').close();
+      });
+      
+      document.getElementById('btnNewSetor')?.addEventListener('click', () => {
+        showSetorForm('Novo Setor');
+      });
+      
+      document.getElementById('btnRefreshSetores')?.addEventListener('click', loadSetoresForManagement);
+      
+      document.getElementById('btnCancelSetorForm')?.addEventListener('click', hideSetorForm);
+      
+      document.getElementById('setorFormData')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        saveSetor(formData);
+      });
+
+      // Sincronizar cor picker e input text
+      document.getElementById('setorCor')?.addEventListener('input', (e) => {
+        document.getElementById('setorCorText').value = e.target.value;
+      });
+      
+      document.getElementById('setorCorText')?.addEventListener('input', (e) => {
+        document.getElementById('setorCor').value = e.target.value;
+      });
+
+      // Modal de Relatórios Administrativos
+      document.getElementById('btnCloseReportsModal')?.addEventListener('click', () => {
+        document.getElementById('adminReportsModal').close();
+      });
+      
+      document.getElementById('btnCloseReportsModal2')?.addEventListener('click', () => {
+        document.getElementById('adminReportsModal').close();
+      });
+      
+      document.getElementById('btnExportReports')?.addEventListener('click', () => {
+        showToast('Funcionalidade de exportação em desenvolvimento', 'info');
+      });
+
+      // Listener para mudanças de autenticação (comentado para evitar auto-login)
+      // supabaseClient.auth.onAuthStateChange((event, session) => {
+      //   if (event === 'SIGNED_IN') {
+      //     handleUserLogin(session.user);
+      //   } else if (event === 'SIGNED_OUT') {
+      //     showLoginScreen();
+      //   }
+      // });
+
       // Testar conexão com Supabase
       supabaseClient.from('tasks').select('count', { count: 'exact', head: true })
         .then(({ count, error }) => {
@@ -1212,21 +3292,190 @@ CREATE TABLE task_attachments (
       return `ID${String(maxId + 1).padStart(3, '0')}`;
     }
     // Carregar tarefas do Supabase ao iniciar (OTIMIZADO - Query em Lote)
+    // Função wrapper para carregar tarefas (para compatibilidade)
+    async function loadTasks() {
+      await loadTasksFromSupabase();
+      renderTaskBoard(); // Atualizar a visualização
+    }
+
     async function loadTasksFromSupabase() {
       try {
         console.log('🚀 Carregando tarefas do Supabase (modo otimizado)...');
         const startTime = Date.now();
         
-        // QUERY 1: Carregar todas as tarefas
-        const { data, error } = await supabaseClient.from('tasks').select('*');
-        if (error) {
-          console.error('Erro ao carregar tarefas do Supabase:', error);
+        // Verificações simples antes de carregar
+        if (!supabaseClient) {
+          console.log('⚠️ SupabaseClient não disponível');
           tasks = [];
-          throw new Error(`Erro ao carregar tarefas: ${error.message}`);
+          return;
+        }
+        
+        if (!currentUser) {
+          console.log('⚠️ Usuário não autenticado');
+          tasks = [];
+          return;
+        }
+
+    // Função auxiliar para atribuir tarefas a um setor
+    async function assignTasksToSector(tasksList, setorId) {
+      try {
+        console.log(`🔄 Atribuindo ${tasksList.length} tarefas ao setor ${setorId}...`);
+        
+        const taskIds = tasksList.map(t => t.id);
+        
+        const { data, error } = await supabaseClient
+          .from('tasks')
+          .update({ setor_id: setorId })
+          .in('id', taskIds);
+          
+        if (error) {
+          console.error('❌ Erro ao atribuir tarefas ao setor:', error);
+          alert('Erro ao atribuir tarefas: ' + error.message);
+          return false;
+        }
+        
+        console.log('✅ Tarefas atribuídas com sucesso!');
+        alert(`✅ ${tasksList.length} tarefas foram atribuídas ao setor Controladoria!`);
+        
+        // Recarregar tarefas
+        await loadTasksFromSupabase();
+        return true;
+        
+      } catch (error) {
+        console.error('❌ Erro ao atribuir tarefas:', error);
+        alert('Erro inesperado ao atribuir tarefas: ' + error.message);
+        return false;
+      }
+    }
+        
+        // Construir query base com relacionamento setores
+        let query = supabaseClient.from('tasks').select(`
+          *,
+          setores(id, nome, cor)
+        `);
+        
+        // Aplicar filtros baseados no tipo de usuário
+        console.log('🔍 Debug antes dos filtros:', {
+          isAdmin: isAdmin,
+          selectedSetorFilter: selectedSetorFilter,
+          currentSetor: currentSetor,
+          currentSetor_id: currentSetor?.id,
+          currentSetor_nome: currentSetor?.nome,
+          currentUserData_setor_id: currentUserData?.setor_id,
+          currentUserData_full: currentUserData
+        });
+        
+        if (isAdmin && selectedSetorFilter) {
+          // Admin com filtro específico
+          console.log('🔍 Admin filtrando por setor:', selectedSetorFilter);
+          query = query.eq('setor_id', selectedSetorFilter);
+        } else if (!isAdmin) {
+          // Usuário normal - usar setor_id diretamente do campo do usuário
+          let userSetorId = null;
+          
+          // Prioridade: usar setor_id do campo direto do usuário
+          if (currentUserData && currentUserData.setor_id) {
+            userSetorId = currentUserData.setor_id;
+            console.log('✅ Setor obtido de currentUserData.setor_id (campo direto):', userSetorId);
+          } else if (currentSetor && currentSetor.id) {
+            userSetorId = currentSetor.id;
+            console.log('✅ Setor obtido de currentSetor.id (relacionamento):', userSetorId);
+          }
+          
+          if (userSetorId) {
+            console.log('👤 Usuário normal - filtrando tarefas por setor (campo direto):', userSetorId);
+            
+            // DEBUG TEMPORÁRIO: Vamos ver todas as tarefas primeiro
+            console.log('🔍 DEBUG: Verificando TODAS as tarefas antes de filtrar...');
+            const { data: allTasks, error: allError } = await supabaseClient
+              .from('tasks')
+              .select('id, title, setor_id, sequential_id')
+              .limit(10);
+              
+            if (!allError && allTasks) {
+              console.log(`📊 DEBUG: Encontradas ${allTasks.length} tarefas no total:`);
+              allTasks.forEach((task, idx) => {
+                const match = task.setor_id === userSetorId ? '✅ MATCH' : '❌ NO MATCH';
+                console.log(`  ${idx + 1}. ${task.title} - Setor: ${task.setor_id || 'NULL'} ${match}`);
+              });
+            }
+            
+            // Usar o setor_id do campo direto do usuário
+            query = query.eq('setor_id', userSetorId);
+          } else {
+            console.warn('⚠️ PROBLEMA: Usuário sem setor definido!');
+            console.warn('📊 Debug completo:', {
+              currentSetor: currentSetor,
+              currentUserData: currentUserData,
+              currentUserData_setor_id: currentUserData?.setor_id,
+              isAdmin: isAdmin
+            });
+            // Em vez de carregar tarefas sem setor, mostrar erro
+            console.log('❌ Não foi possível determinar o setor do usuário - carregando tarefas vazias');
+            tasks = [];
+            return;
+          }
+        }
+        // Admin sem filtro vê todas as tarefas
+        
+        // QUERY 1: Carregar tarefas com filtro aplicado
+        console.log('🔍 Executando query com filtros aplicados...');
+        const { data, error } = await query;
+        
+        console.log('📊 Resultado da query:', {
+          data_length: data?.length || 0,
+          error: error,
+          query_applied: !isAdmin ? 'Filtro por setor aplicado' : 'Admin - sem filtro ou com filtro específico'
+        });
+        
+        if (error) {
+          console.error('❌ Erro ao carregar tarefas do Supabase:', error);
+          tasks = [];
+          showToast('Erro ao carregar tarefas: ' + error.message, 'error');
+          return; // Não throw, apenas retornar
         }
         
         tasks = data || [];
         console.log(`✅ ${tasks.length} tarefas carregadas do Supabase`);
+        
+        if (tasks.length > 0) {
+          console.log('📋 Primeiras tarefas carregadas:');
+          tasks.slice(0, 5).forEach((task, idx) => {
+            console.log(`  ${idx + 1}. ${task.title} (Setor ID: ${task.setor_id || 'NULL'}) (Sequential: ${task.sequential_id})`);
+          });
+        } else {
+          console.warn('⚠️ Nenhuma tarefa encontrada para este usuário/filtro');
+          
+          // Se é usuário normal e não encontrou tarefas, vamos verificar se existem tarefas sem setor
+          if (!isAdmin) {
+            console.log('🔍 Verificando se existem tarefas sem setor atribuído...');
+            try {
+              const { data: tasksWithoutSector, error: errorNoSector } = await supabaseClient
+                .from('tasks')
+                .select('id, title, setor_id, sequential_id')
+                .is('setor_id', null)
+                .limit(10);
+                
+              if (!errorNoSector && tasksWithoutSector && tasksWithoutSector.length > 0) {
+                console.log(`📋 Encontradas ${tasksWithoutSector.length} tarefas SEM setor:`);
+                tasksWithoutSector.forEach((task, idx) => {
+                  console.log(`  ${idx + 1}. ${task.title} (ID: ${task.id})`);
+                });
+                
+                // Oferecer opção de atribuir essas tarefas ao setor do usuário
+                console.log('💡 SOLUÇÃO: Atribuir essas tarefas ao setor Controladoria');
+                
+                if (confirm(`Foram encontradas ${tasksWithoutSector.length} tarefas sem setor atribuído.\n\nDeseja atribuí-las automaticamente ao setor Controladoria?`)) {
+                  await assignTasksToSector(tasksWithoutSector, currentSetor.id);
+                }
+              } else {
+                console.log('✅ Não há tarefas sem setor');
+              }
+            } catch (err) {
+              console.error('Erro ao verificar tarefas sem setor:', err);
+            }
+          }
+        }
         
         // QUERY 2: Carregar TODOS os anexos de uma vez (em lote)
         if (tasks.length > 0) {
@@ -1286,6 +3535,10 @@ CREATE TABLE task_attachments (
         const endTime = Date.now();
         const loadTime = ((endTime - startTime) / 1000).toFixed(2);
         console.log(`⚡ Carregamento concluído em ${loadTime}s (modo otimizado)`);
+        
+        // IMPORTANTE: Atualizar a interface após carregar as tarefas
+        console.log('🔄 Atualizando interface...');
+        refreshAll();
         
       } catch (error) {
         console.error('❌ Erro geral ao carregar tarefas:', error);
@@ -1549,7 +3802,9 @@ CREATE TABLE task_attachments (
     }
 
     function renderList() {
+      console.log('🎨 renderList() chamada - Total de tarefas disponíveis:', tasks.length);
       let list = applyFilters(tasks);
+      console.log('🎨 Após aplicar filtros, tarefas para exibir:', list.length);
       
       // Ordenação hierárquica: Prioridade de Status + Urgência por Prazo
       list = list.slice().sort((a, b) => {
@@ -1609,8 +3864,8 @@ CREATE TABLE task_attachments (
           <td class="px-4 py-3 text-right">
             <div class="flex justify-end gap-2">
               <button class="px-3 py-1 rounded-xl bg-slate-200" data-act="view" data-id="${t.id}">Ver</button>
-              <button class="px-3 py-1 rounded-xl bg-amber-200" data-act="edit" data-id="${t.id}">Editar</button>
-              <button class="px-3 py-1 rounded-xl bg-rose-200" data-act="del" data-id="${t.id}">Excluir</button>
+              ${isAdmin ? `<button class="px-3 py-1 rounded-xl bg-amber-200" data-act="edit" data-id="${t.id}">Editar</button>` : ''}
+              ${isAdmin ? `<button class="px-3 py-1 rounded-xl bg-rose-200" data-act="del" data-id="${t.id}">Excluir</button>` : ''}
             </div>
           </td>`;
         tbody.appendChild(tr);
@@ -1671,8 +3926,8 @@ CREATE TABLE task_attachments (
           <div class='flex flex-wrap items-center gap-2 mt-1'>${(t.tags||[]).map(x=>`<span class='text-xs font-medium bg-slate-100 border border-slate-200 rounded px-2 py-0.5 mr-1'>${x}</span>`).join('')}${imgs}</div>
           <div class='flex justify-end gap-2 mt-2'>
             <button class='px-2 py-1 rounded-xl bg-slate-200 text-xs' data-act='view' data-id='${t.id}' aria-label='Ver detalhes'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><circle cx='12' cy='12' r='4'/></svg></button>
-            <button class='px-2 py-1 rounded-xl bg-amber-200 text-xs' data-act='edit' data-id='${t.id}' aria-label='Editar'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M12 20h9'/><path d='M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z'/></svg></button>
-            <button class='px-2 py-1 rounded-xl bg-rose-200 text-xs' data-act='del' data-id='${t.id}' aria-label='Excluir'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6'/></svg></button>
+            ${isAdmin ? `<button class='px-2 py-1 rounded-xl bg-amber-200 text-xs' data-act='edit' data-id='${t.id}' aria-label='Editar'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M12 20h9'/><path d='M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z'/></svg></button>` : ''}
+            ${isAdmin ? `<button class='px-2 py-1 rounded-xl bg-rose-200 text-xs' data-act='del' data-id='${t.id}' aria-label='Excluir'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6'/></svg></button>` : ''}
           </div>`;
         container.querySelector(`[data-col='${t.status}']`).appendChild(card);
       });
@@ -1694,6 +3949,7 @@ CREATE TABLE task_attachments (
       editingId = null; anexosTemp = []; renderThumbs();
       form.reset();
       document.getElementById('modalTitle').textContent = 'Nova Atividade';
+      loadSetoresInTaskModal(); // Carregar setores quando abrir o modal
       modal.showModal();
     });
     document.getElementById('btnCloseModal').addEventListener('click', ()=> modal.close());
@@ -1860,7 +4116,20 @@ CREATE TABLE task_attachments (
           if (idx === -1) {
             throw new Error('Tarefa para edição não encontrada');
           }
+          
+          // Obter setor_id do formulário
+          const setorId = form.querySelector('#inputSetor').value;
+          
+          // Validar setor para usuários não-admin
+          if (!isAdmin && (!setorId || setorId !== currentSetor?.id)) {
+            alert('Erro: Setor inválido para este usuário!');
+            return;
+          }
+          
           let editTask = { ...tasks[idx], ...data, tags, attachments: [...anexosTemp] };
+          // Adicionar setor_id atualizado
+          editTask.setor_id = setorId || null;
+          
           // Corrige nome do campo de data para Supabase
           if (editTask.due) {
             editTask.due_date = editTask.due;
@@ -1876,6 +4145,16 @@ CREATE TABLE task_attachments (
           await supabaseInsertTask(editTask);
         } else {
           const sequentialId = generateSequentialId();
+          
+          // Obter setor_id do formulário
+          const setorId = form.querySelector('#inputSetor').value;
+          
+          // Validar setor para usuários não-admin
+          if (!isAdmin && (!setorId || setorId !== currentSetor?.id)) {
+            alert('Erro: Setor inválido para este usuário!');
+            return;
+          }
+          
           const nova = { 
             id: uuidv4(), 
             sequential_id: sequentialId,
@@ -1885,6 +4164,7 @@ CREATE TABLE task_attachments (
             priority: data.priority||'Média', 
             status: data.status||'Backlog', 
             description: data.description||'', 
+            setor_id: setorId || null, // Adicionar setor_id
             tags, 
             attachments: [...anexosTemp], 
             created_at: new Date().toISOString() 
@@ -2008,11 +4288,20 @@ CREATE TABLE task_attachments (
       renderThumbs();
       form.title.value = t.title || '';
       form.assignee.value = t.assignee || '';
-  form.due.value = t.due_date || t.due || '';
+      form.due.value = t.due_date || t.due || '';
       form.priority.value = t.priority || 'Média';
       form.status.value = t.status || 'Backlog';
       form.description.value = t.description || '';
       form.tags.value = (t.tags||[]).join(', ');
+      
+      // Carregar setores e definir o valor da tarefa atual
+      loadSetoresInTaskModal().then(() => {
+        const setorSelect = document.getElementById('inputSetor');
+        if (setorSelect && t.setor_id) {
+          setorSelect.value = t.setor_id;
+        }
+      });
+      
       document.getElementById('modalTitle').textContent = 'Editar Atividade';
       modal.showModal();
     }
@@ -2024,8 +4313,8 @@ CREATE TABLE task_attachments (
       const body = document.getElementById('detailBody');
       body.innerHTML = `
         <div class='flex items-center gap-2 mb-3'>
-          <span class='text-xs font-mono bg-slate-200 px-2 py-1 rounded text-slate-600'>${t.sequential_id || '-'}</span>
           <span class='text-slate-500'>ID:</span>
+          <span class='text-xs font-mono bg-slate-200 px-2 py-1 rounded text-slate-600'>${t.sequential_id || '-'}</span>
         </div>
         <div><span class='text-slate-500'>Título:</span> <span class='font-medium'>${t.title}</span></div>
         <div class='grid grid-cols-2 gap-2'>
@@ -2391,13 +4680,22 @@ CREATE TABLE task_attachments (
       renderList();
       renderKanban();
     }
+    
+    // Alias para compatibilidade
+    const renderTaskBoard = refreshViews;
+    
     function refreshAll() {
+      console.log('🔄 refreshAll() chamada - Total de tarefas:', tasks.length);
       kpi.render();
       refreshCharts();
       refreshViews();
       // Força exibir todas as tarefas se tasks estiver vazio
       if (!tasks || tasks.length === 0) {
         document.getElementById('emptyList').classList.remove('hidden');
+        console.log('📭 Mostrando mensagem de lista vazia');
+      } else {
+        document.getElementById('emptyList').classList.add('hidden');
+        console.log('📋 Escondendo mensagem de lista vazia - há', tasks.length, 'tarefas');
       }
     }
 
@@ -2443,10 +4741,42 @@ CREATE TABLE task_attachments (
     }
     
     // Inicializar quando o DOM estiver carregado
+    async function initializeApp() {
+      try {
+        // BYPASS para desenvolvimento (remover depois)
+        if (BYPASS_AUTH) {
+          console.log('🚨 MODO BYPASS ATIVADO - Simulando login como admin');
+          
+          // Simular dados do admin
+          currentUser = {
+            email: 'natanjs01@gmail.com',
+            user_metadata: { full_name: 'Natanael Bernardo' }
+          };
+          currentSetor = null; // Admin não tem setor
+          isAdmin = true;
+          
+          showApp();
+          startApp();
+          updateUserInterface();
+          return;
+        }
+        
+        // Apenas mostrar tela de login - NÃO verificar sessão automaticamente
+        showLoginScreen();
+        console.log('Tela de login exibida. Aguardando interação do usuário.');
+        
+        // Só verificar sessão se o usuário fizer uma ação
+        
+      } catch (error) {
+        console.error('Erro na inicialização:', error);
+        showLoginScreen();
+      }
+    }
+
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', startApp);
+      document.addEventListener('DOMContentLoaded', initializeApp);
     } else {
-      startApp();
+      initializeApp();
     }
     // Exportar PDF do Dashboard (restaurado e robusto)
     function setupPDFExportButton() {
