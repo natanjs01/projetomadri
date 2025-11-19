@@ -2904,15 +2904,20 @@
         
         try {
           const success = await handleRequestCompletion(taskId, notes);
-          if (!success) {
-            // Reabilitar botão se houve erro
-            submitButton.disabled = false;
-            submitButton.textContent = originalText;
+          // ✅ SEMPRE reabilitar botão, independente do resultado
+          submitButton.disabled = false;
+          submitButton.textContent = originalText;
+          
+          if (success) {
+            // Fechar modal apenas se sucesso
+            document.getElementById('confirmationRequestModal').close();
           }
         } catch (error) {
+          // ✅ Reabilitar botão em caso de erro
           submitButton.disabled = false;
           submitButton.textContent = originalText;
           console.error('Erro ao processar solicitação:', error);
+          alert('Erro inesperado: ' + error.message);
         }
       });
 
@@ -3924,6 +3929,12 @@ CREATE TABLE task_attachments (
         return;
       }
       
+      // 🚫 Verificar se já tem solicitação pendente
+      if (task.confirmation_status === 'pending') {
+        alert('⚠️ Esta tarefa já possui uma solicitação de conclusão pendente!\n\nAguarde a aprovação do administrador.');
+        return;
+      }
+      
       const titleElement = document.getElementById('confirmationTaskTitle');
       const descElement = document.getElementById('confirmationTaskDescription');
       const notesElement = document.getElementById('confirmationNotes');
@@ -3932,6 +3943,12 @@ CREATE TABLE task_attachments (
       
       if (!titleElement || !descElement || !notesElement || !formElement || !modalElement) {
         alert('Erro: Modal não encontrado na página!');
+        return;
+      }
+      
+      // 🔄 Verificar se modal já está aberto
+      if (modalElement.open) {
+        console.log('Modal já está aberto, ignorando...');
         return;
       }
       
@@ -3955,6 +3972,25 @@ CREATE TABLE task_attachments (
         }
         
         console.log('📝 Enviando solicitação de confirmação para tarefa:', taskId);
+        
+        // 🔍 Verificar se já existe solicitação pendente
+        const { data: existingTask, error: checkError } = await supabaseClient
+          .from('tasks')
+          .select('confirmation_status, confirmation_requested_by')
+          .eq('id', taskId)
+          .single();
+        
+        if (checkError) {
+          console.error('❌ Erro ao verificar tarefa:', checkError);
+          alert('Erro ao verificar tarefa: ' + checkError.message);
+          return false;
+        }
+        
+        // 🚫 Verificar se já tem solicitação pendente
+        if (existingTask.confirmation_status === 'pending') {
+          alert('⚠️ Esta tarefa já possui uma solicitação de conclusão pendente!\n\nAguarde a aprovação do administrador.');
+          return false;
+        }
         
         // Atualizar a tarefa no Supabase com os dados da solicitação
         const { data, error } = await supabaseClient
@@ -3983,11 +4019,10 @@ CREATE TABLE task_attachments (
         }
         
         console.log('✅ Solicitação de confirmação enviada com sucesso!');
-        alert('✅ Solicitação de confirmação enviada! O administrador será notificado.');
+        alert('✅ Solicitação de confirmação enviada!\n\nO administrador será notificado e avaliará sua solicitação.');
         
-        // Fechar modal e atualizar interface
-        document.getElementById('confirmationRequestModal').close();
-        refreshAll();
+        // ⚡ Atualizar interface de forma otimizada (não fechar modal aqui)
+        refreshViews(); // Só atualizar as views, não tudo
         
         return true;
         
@@ -4699,7 +4734,8 @@ CREATE TABLE task_attachments (
             <div class="flex justify-end gap-2">
               <button class="px-3 py-1 rounded-xl bg-slate-200" data-act="view" data-id="${t.id}">Ver</button>
               ${isAdmin ? `<button class="px-3 py-1 rounded-xl bg-amber-200" data-act="edit" data-id="${t.id}">Editar</button>` : ''}
-              ${!isAdmin && t.status !== 'Concluído' ? `<button class="px-3 py-1 rounded-xl bg-green-200" data-act="requestCompletion" data-id="${t.id}">Solicitar Conclusão</button>` : ''}
+              ${!isAdmin && t.status !== 'Concluído' && t.confirmation_status !== 'pending' ? `<button class="px-3 py-1 rounded-xl bg-green-200" data-act="requestCompletion" data-id="${t.id}">Solicitar Conclusão</button>` : ''}
+              ${t.confirmation_status === 'pending' ? `<span class="px-3 py-1 rounded-xl bg-yellow-200 text-yellow-800 text-sm">⏳ Aprovação Pendente</span>` : ''}
               ${isAdmin ? `<button class="px-3 py-1 rounded-xl bg-rose-200" data-act="del" data-id="${t.id}">Excluir</button>` : ''}
             </div>
           </td>`;
@@ -4761,7 +4797,8 @@ CREATE TABLE task_attachments (
           <div class='flex flex-wrap items-center gap-2 mt-1'>${(t.tags||[]).map(x=>`<span class='text-xs font-medium bg-slate-100 border border-slate-200 rounded px-2 py-0.5 mr-1'>${x}</span>`).join('')}${imgs}</div>
           <div class='flex justify-end gap-2 mt-2'>
             <button class='px-2 py-1 rounded-xl bg-slate-200 text-xs' data-act='view' data-id='${t.id}' aria-label='Ver detalhes'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><circle cx='12' cy='12' r='4'/></svg></button>
-            ${!isAdmin && t.status !== 'Concluído' ? `<button class='px-2 py-1 rounded-xl bg-green-200 text-xs' data-act='requestCompletion' data-id='${t.id}' aria-label='Solicitar Conclusão'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><polyline points='20 6 9 17 4 12'/></svg></button>` : ''}
+            ${!isAdmin && t.status !== 'Concluído' && t.confirmation_status !== 'pending' ? `<button class='px-2 py-1 rounded-xl bg-green-200 text-xs' data-act='requestCompletion' data-id='${t.id}' aria-label='Solicitar Conclusão'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><polyline points='20 6 9 17 4 12'/></svg></button>` : ''}
+            ${t.confirmation_status === 'pending' ? `<span class='px-2 py-1 rounded-xl bg-yellow-200 text-yellow-800 text-xs' title='Aguardando aprovação'>⏳</span>` : ''}
             ${isAdmin ? `<button class='px-2 py-1 rounded-xl bg-amber-200 text-xs' data-act='edit' data-id='${t.id}' aria-label='Editar'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M12 20h9'/><path d='M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z'/></svg></button>` : ''}
             ${isAdmin ? `<button class='px-2 py-1 rounded-xl bg-rose-200 text-xs' data-act='del' data-id='${t.id}' aria-label='Excluir'><svg width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6'/></svg></button>` : ''}
           </div>`;
